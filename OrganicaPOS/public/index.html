@@ -1050,7 +1050,7 @@
           <div id="loginError"></div>
 
 <div class="db-selector mb-4">
-    <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip conexiune:</label>
+    <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip baza de date:</label>
     <div style="display: flex; gap: 10px;">
         <button type="button" class="btn btn-primary btn-sm" id="btnDbSupabase" onclick="switchDbType('supabase')" style="flex:1;">☁️ Cloud</button>
         <button type="button" class="btn btn-secondary btn-sm" id="btnDbLocal" onclick="switchDbType('local')" style="flex:1;">💻 Local</button>
@@ -2938,6 +2938,210 @@ let payMethod = null;
 let confirmCb = null;
 let appSettings = {};
 
+	// ================================================
+// DATABASE TYPE & LOCAL STORAGE
+// ================================================
+let dbType = localStorage.getItem('dbType') || 'supabase';
+let localDb = null;
+const DB_NAME = 'OrganicaPOS';
+const DB_VERSION = 1;
+
+// Schimbă tipul de bază de date de pe pagina de login
+async function switchDbType(type) {
+    dbType = type;
+    localStorage.setItem('dbType', type);
+    
+    // Actualizează butoanele
+    if ($('btnDbSupabase')) {
+        $('btnDbSupabase').className = type === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+    if ($('btnDbLocal')) {
+        $('btnDbLocal').className = type === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+    
+    // Dacă e local, inițializează și creează utilizatorii
+    if (type === 'local') {
+        await initLocalDb();
+        await setupLocalAdmin();
+        toast('Mod local activat. Login: Admin/admin sau Operator/1234');
+    } else {
+        toast('Mod cloud activat.');
+    }
+}
+
+// Actualizează UI-ul la încărcare
+function updateDbTypeButtons() {
+    if ($('btnDbSupabase')) {
+        $('btnDbSupabase').className = dbType === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+    if ($('btnDbLocal')) {
+        $('btnDbLocal').className = dbType === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+}
+
+// Inițializare IndexedDB pentru stocare locală
+async function initLocalDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            localDb = request.result;
+            resolve(localDb);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            if (!db.objectStoreNames.contains('products')) {
+                const products = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
+                products.createIndex('category_id', 'category_id');
+            }
+            if (!db.objectStoreNames.contains('categories')) {
+                db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('ingredients')) {
+                db.createObjectStore('ingredients', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('recipes')) {
+                const recipes = db.createObjectStore('recipes', { keyPath: 'id', autoIncrement: true });
+                recipes.createIndex('product_id', 'product_id');
+            }
+            if (!db.objectStoreNames.contains('sales')) {
+                const sales = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+                sales.createIndex('created_at', 'created_at');
+            }
+            if (!db.objectStoreNames.contains('sale_items')) {
+                const saleItems = db.createObjectStore('sale_items', { keyPath: 'id', autoIncrement: true });
+                saleItems.createIndex('sale_id', 'sale_id');
+            }
+            if (!db.objectStoreNames.contains('users')) {
+                db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
+            }
+            if (!db.objectStoreNames.contains('cash_operations')) {
+                const cash = db.createObjectStore('cash_operations', { keyPath: 'id', autoIncrement: true });
+                cash.createIndex('created_at', 'created_at');
+            }
+        };
+    });
+}
+
+// Operații CRUD pentru baza de date locală
+const localDbOps = {
+    async getAll(storeName) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async getById(storeName, id) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async getByIndex(storeName, indexName, value) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const index = store.index(indexName);
+            const request = index.getAll(value);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async insert(storeName, data) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            if (!data.created_at) data.created_at = new Date().toISOString();
+            const request = store.add(data);
+            request.onsuccess = () => {
+                data.id = request.result;
+                resolve(data);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async update(storeName, data) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.put(data);
+            request.onsuccess = () => resolve(data);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async delete(storeName, id) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async clear(storeName) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.clear();
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+};
+
+// Creează utilizatorul admin implicit pentru baza de date locală
+async function setupLocalAdmin() {
+    if (dbType !== 'local') return;
+    
+    try {
+        await initLocalDb();
+        const users = await localDbOps.getAll('users');
+        
+        if (users.length === 0) {
+            await localDbOps.insert('users', {
+                name: 'Admin',
+                password: 'admin',
+                role: 'admin',
+                active: true
+            });
+            
+            await localDbOps.insert('users', {
+                name: 'Operator',
+                password: '1234',
+                role: 'operator',
+                active: true
+            });
+            
+            console.log('✅ Utilizatori impliciți creați');
+        }
+    } catch (e) {
+        console.error('Eroare setup local:', e);
+    }
+}
+
+	
 // ================================================
 // HELPERS
 // ================================================
