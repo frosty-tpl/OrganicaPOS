@@ -1047,21 +1047,32 @@
                 <h1>Organica POS</h1>
                 <p>Sistem de gestiune și vânzare</p>
             </div>
-            <div id="loginError"></div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label>Utilizator</label>
-                    <input type="text" class="form-control" id="loginUser" placeholder="Nume utilizator" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label>Parolă</label>
-                    <input type="password" class="form-control" id="loginPass" placeholder="Parola" required autocomplete="current-password">
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg btn-block">🔐 Autentificare</button>
-            </form>
-            <div class="text-center mt-4">
-                <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓 Schimbă tema</button>
-            </div>
+          <div id="loginError"></div>
+
+<div class="db-selector mb-4">
+    <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip conexiune:</label>
+    <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-primary btn-sm" id="btnDbSupabase" onclick="switchDbType('supabase')" style="flex:1;">☁️ Cloud</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btnDbLocal" onclick="switchDbType('local')" style="flex:1;">💻 Local</button>
+    </div>
+</div>
+
+<form id="loginForm">
+    <div class="form-group">
+        <label>Utilizator</label>
+        <input type="text" class="form-control" id="loginUser" placeholder="Nume utilizator" required autocomplete="username">
+    </div>
+    <div class="form-group">
+        <label>Parolă</label>
+        <input type="password" class="form-control" id="loginPass" placeholder="Parola" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg btn-block">🔐 Autentificare</button>
+</form>
+
+<div class="text-center mt-4">
+    <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓 Schimbă tema</button>
+</div>
+
         </div>
     </div>
 
