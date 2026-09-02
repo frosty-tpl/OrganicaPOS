@@ -1,0 +1,4180 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organica POS - Sistem de Vânzare</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 15px rgba(0,0,0,0.1);
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #0ea5e9;
+            --radius: 10px;
+            --radius-lg: 14px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border: #334155;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-lg: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-ghost { background: transparent; color: var(--text-secondary); }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .btn-lg { padding: 14px 28px; font-size: 16px; }
+        .btn-block { width: 100%; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus { outline: none; border-color: var(--accent); }
+        .form-control::placeholder { color: var(--text-muted); }
+        select.form-control { cursor: pointer; }
+        textarea.form-control { resize: vertical; min-height: 80px; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .card-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-body { padding: 20px; }
+
+        /* Login Page */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #06b6d4 100%);
+            padding: 20px;
+        }
+
+        .login-box {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-logo { text-align: center; margin-bottom: 24px; }
+        .login-logo .icon { font-size: 48px; }
+        .login-logo h1 { font-size: 28px; margin-top: 8px; }
+        .login-logo p { color: var(--text-muted); font-size: 14px; }
+
+        /* App Layout */
+        .app { display: none; }
+        
+        .header {
+            background: var(--bg-secondary);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge-cash { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .badge-status { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+        .badge-time { color: var(--text-muted); font-size: 12px; }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .user-name { font-weight: 600; font-size: 14px; }
+        .user-role { font-size: 11px; color: var(--text-muted); }
+
+        /* Navigation */
+        .nav {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+        }
+
+        .nav-item {
+            padding: 14px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover { color: var(--text-primary); }
+        .nav-item.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* Main Content */
+        .main { padding: 24px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* POS Layout */
+        .pos-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            height: calc(100vh - 180px);
+        }
+
+        /* Categories */
+        .categories {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .category-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+			color: white; /*adaugat pt font alb categorii*/
+        }
+
+        .category-btn:hover { border-color: var(--accent); }
+        .category-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+        /* Products Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            overflow-y: auto;
+            max-height: calc(100vh - 300px);
+            padding: 4px;
+        }
+
+        .product-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 14px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .product-card.disabled { opacity: 0.4; pointer-events: none; }
+        .product-card .emoji { font-size: 28px; margin-bottom: 6px; }
+        .product-card .name { font-size: 11px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .product-card .price { font-size: 14px; font-weight: 700; color: var(--accent); }
+        .product-card .stock { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+        .product-card .stock.low { color: var(--warning); }
+        .product-card .stock.out { color: var(--danger); }
+
+        /* Cart */
+        .cart {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .cart-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .cart-empty .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cart-item-info { flex: 1; min-width: 0; }
+        .cart-item-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cart-item-price { font-size: 12px; color: var(--text-muted); }
+
+        .cart-item-qty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qty-btn:hover { background: var(--accent); color: white; }
+
+        .cart-item-total { font-weight: 700; min-width: 70px; text-align: right; }
+
+        .cart-footer {
+            border-top: 2px solid var(--text-primary);
+            padding-top: 16px;
+            margin-top: 16px;
+        }
+
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .cart-actions { display: flex; gap: 10px; }
+        .cart-actions .btn { flex: 1; }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-tertiary); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+        tr:hover { background: var(--bg-tertiary); }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .badge-muted { background: var(--bg-tertiary); color: var(--text-muted); }
+        .badge-info { background: rgba(14, 165, 233, 0.15); color: var(--info); }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--border);
+        }
+
+        .stat-card.primary { border-left-color: var(--accent); }
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.danger { border-left-color: var(--danger); }
+
+        .stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .stat-value { font-size: 24px; font-weight: 800; }
+
+        /* Filter Tabs */
+        .filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border: 2px solid var(--border);
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+			color: white; /*adaugat pt font alb*/
+        }
+
+        .filter-btn:hover { border-color: var(--accent); }
+        .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .filter-btn .count { opacity: 0.7; margin-left: 4px; }
+
+        /* Operations Grid */
+        .ops-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .op-card {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid var(--border);
+        }
+
+        .op-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .op-card.green { border-left-color: var(--success); }
+        .op-card.red { border-left-color: var(--danger); }
+        .op-card.blue { border-left-color: var(--info); }
+        .op-card.yellow { border-left-color: var(--warning); }
+
+        .op-card .icon { font-size: 32px; margin-bottom: 8px; }
+        .op-card .title { font-weight: 700; font-size: 14px; }
+        .op-card .desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal.lg { max-width: 700px; }
+        .modal.xl { max-width: 900px; }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* Alert */
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .alert-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .alert-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .alert-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .alert-info { background: rgba(14, 165, 233, 0.15); color: var(--info); }
+
+        /* Payment */
+        .payment-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+
+        .payment-btn {
+            padding: 28px;
+            border: 3px solid var(--border);
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .payment-btn:hover { border-color: var(--accent); }
+        .payment-btn.selected { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+        .payment-btn .icon { font-size: 36px; margin-bottom: 8px; }
+        .payment-btn .label { font-weight: 700; font-size: 16px; }
+
+        .cash-calc {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .cash-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .cash-row label { font-weight: 600; min-width: 80px; }
+        .cash-row input { flex: 1; font-size: 20px; text-align: right; padding: 12px; }
+
+        .change-box {
+            padding: 16px;
+            border-radius: var(--radius);
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .change-box.positive { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+        .change-box.negative { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        /* Receipt */
+        .receipt {
+            font-family: 'Courier New', monospace;
+            background: var(--bg-tertiary);
+            border: 2px dashed var(--border);
+            padding: 20px;
+            font-size: 12px;
+        }
+
+        .receipt-header { text-align: center; border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px; }
+        .receipt-title { font-size: 14px; font-weight: bold; }
+        .receipt-row { display: flex; justify-content: space-between; padding: 3px 0; }
+        .receipt-divider { border-top: 1px dashed var(--border); margin: 10px 0; }
+        .receipt-total { font-weight: bold; font-size: 14px; }
+
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toasts {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 14px 20px;
+            border-radius: var(--radius);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        .toast.info { background: var(--info); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .pos-layout { grid-template-columns: 1fr; height: auto; }
+            .products-grid { max-height: 50vh; }
+        }
+
+        @media (max-width: 768px) {
+            .header { padding: 10px 16px; }
+            .nav { padding: 0 16px; }
+            .main { padding: 16px; }
+            .header-info { display: none; }
+            .nav-item { padding: 12px 14px; font-size: 13px; }
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--danger); }
+        .font-bold { font-weight: 700; }
+        .mb-0 { margin-bottom: 0; }
+        .mb-2 { margin-bottom: 8px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mt-4 { margin-top: 16px; }
+        .flex { display: flex; }
+        .gap-2 { gap: 8px; }
+        .gap-4 { gap: 16px; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .flex-wrap { flex-wrap: wrap; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+		/* Recipe Builder */
+.recipe-builder {
+    padding: 15px 0;
+}
+
+.recipe-add {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.recipe-add select {
+    flex: 2;
+}
+
+.recipe-add input {
+    flex: 1;
+    min-width: 100px;
+}
+
+.recipe-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 100px;
+    padding: 10px;
+    background: var(--bg);
+}
+
+.recipe-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: var(--card);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.recipe-item:last-child {
+    margin-bottom: 0;
+}
+
+.recipe-item-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.recipe-item-name {
+    font-weight: 600;
+}
+
+.recipe-item-qty {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.recipe-item-cost {
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+.recipe-item .btn-danger {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+.recipe-cost {
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--success);
+    color: white;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.recipe-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px;
+}
+
+/* Alert pentru stoc scăzut */
+.alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    border: 1px solid #dc3545;
+    color: #721c24;
+}
+
+/* Modal sizes */
+.modal-sm .modal-content {
+    max-width: 400px;
+}
+
+.modal-lg .modal-content {
+    max-width: 700px;
+}
+
+/* Form row */
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+/* Product type toggle */
+.product-type-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.product-type-btn {
+    flex: 1;
+    padding: 15px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.product-type-btn:hover {
+    border-color: var(--primary);
+}
+
+.product-type-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+}
+
+.product-type-btn .icon {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Badge pentru tip produs */
+.badge-simple {
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.badge-complex {
+    background: #9c27b0;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+		/* Cash Register Status */
+#crStatus {
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+.alert-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.mt-3 {
+    margin-top: 15px;
+}
+
+.mb-4 {
+    margin-bottom: 20px;
+}
+
+		/* Cash Register Settings */
+.form-divider {
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.cr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.cr-status {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.cr-status.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.cr-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.cr-status.info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+		
+        .admin-only { display: none; }
+		/* Ascunde coloanele Cost, Profit și Val. Achiziție pentru operatori */
+			body.role-operator #invTable th:nth-child(6),
+			body.role-operator #invTable th:nth-child(7),
+			body.role-operator #invTable th:nth-child(8),
+			body.role-operator #invTable td:nth-child(6),
+			body.role-operator #invTable td:nth-child(7),
+			body.role-operator #invTable td:nth-child(8) {
+    			display: none;
+}
+/* Password visibility */
+.password-hidden, .password-visible {
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.password-visible {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+		
+    </style>
+</head>
+<body data-theme="light">
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toasts" id="toasts"></div>
+
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <div class="login-box">
+            <div class="login-logo">
+                <div class="icon">🍺</div>
+                <h1>Organica POS</h1>
+                <p>Sistem de gestiune și vânzare</p>
+            </div>
+            <div id="loginError"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Utilizator</label>
+                    <input type="text" class="form-control" id="loginUser" placeholder="Nume utilizator" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Parolă</label>
+                    <input type="password" class="form-control" id="loginPass" placeholder="Parola" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg btn-block">🔐 Autentificare</button>
+            </form>
+            <div class="text-center mt-4">
+                <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓 Schimbă tema</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div class="app" id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-brand">
+                <span>🍺</span>
+                <span>Organica POS</span>
+            </div>
+            <div class="header-info">
+                <div class="header-badge badge-cash">💰 <span id="headerCash">0.00</span> RON</div>
+                <div class="header-badge badge-status">🟢 Online</div>
+                <div class="badge-time" id="headerTime"></div>
+                <div class="header-user">
+                    <div class="avatar" id="userAvatar">A</div>
+                    <div>
+                        <div class="user-name" id="userName">Admin</div>
+                        <div class="user-role" id="userRole">Administrator</div>
+                    </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓</button>
+                <button class="btn btn-secondary btn-sm" onclick="logout()">🚪 Ieșire</button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <button class="nav-item active" data-tab="pos">🛒 Vânzare</button>
+            <button class="nav-item" data-tab="cash">💰 Casă</button>
+            <button class="nav-item" data-tab="inventory">📦 Gestiune</button>
+            <button class="nav-item" data-tab="products">🏷️ Produse</button>
+            <button class="nav-item" data-tab="reports">📊 Rapoarte</button>
+            <button class="nav-item" data-tab="settings">⚙️ Setări</button>
+			<button class="nav-item" data-tab="ingredients">🧪 Ingrediente</button>
+
+
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- POS Tab -->
+            <div class="tab-content active" id="tab-pos">
+                <div class="pos-layout">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="categories" id="categories"></div>
+                            <div class="products-grid" id="products"></div>
+                        </div>
+                    </div>
+                    <div class="card cart">
+                        <div class="card-header">
+                            <h3>🧾 Comandă curentă</h3>
+                            <span class="text-muted" id="cartCount">0 produse</span>
+                        </div>
+                        <div class="card-body" style="flex:1;display:flex;flex-direction:column;">
+                            <div class="cart-items" id="cartItems">
+                                <div class="cart-empty">
+                                    <div class="icon">🛒</div>
+                                    <div>Coșul este gol</div>
+                                    <div class="text-muted" style="font-size:12px;margin-top:4px;">Selectează produse din stânga</div>
+                                </div>
+                            </div>
+                            <div class="cart-footer">
+                                <div class="cart-total">
+                                    <span>TOTAL</span>
+                                    <span id="cartTotal">0.00 RON</span>
+                                </div>
+                                <div class="cart-actions">
+                                    <button class="btn btn-danger" onclick="clearCart()">🗑️ Șterge</button>
+                                    <button class="btn btn-success btn-lg" onclick="openPayment()" id="btnPay">💳 Plată</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cash Tab -->
+            <div class="tab-content" id="tab-cash">
+                <div class="stats-grid" id="cashStats">
+                    <div class="stat-card"><div class="stat-label">Sold Inițial</div><div class="stat-value" id="cashOpen">0</div></div>
+                    <div class="stat-card success"><div class="stat-label">Vânzări Cash</div><div class="stat-value" id="cashSales">0</div></div>
+                    <div class="stat-card success"><div class="stat-label">Depuneri</div><div class="stat-value" id="cashDeposits">0</div></div>
+                    <div class="stat-card danger"><div class="stat-label">Retrageri</div><div class="stat-value" id="cashWithdrawals">0</div></div>
+                    <div class="stat-card primary"><div class="stat-label">Sold Curent</div><div class="stat-value" id="cashCurrent">0</div></div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header"><h3>💰 Operațiuni Casă</h3></div>
+                    <div class="card-body">
+                        <div class="ops-grid">
+                            <div class="op-card green" onclick="openCashOp('deposit')">
+                                <div class="icon">💵</div>
+                                <div class="title">Depunere</div>
+                                <div class="desc">Adaugă numerar</div>
+                            </div>
+                            <div class="op-card red" onclick="openCashOp('withdraw')">
+                                <div class="icon">💸</div>
+                                <div class="title">Retragere</div>
+                                <div class="desc">Scoate numerar</div>
+                            </div>
+                            <div class="op-card blue" onclick="genXReport()">
+                                <div class="icon">📋</div>
+                                <div class="title">Raport X</div>
+                                <div class="desc">Fără închidere</div>
+                            </div>
+                            <div class="op-card yellow" onclick="genZReport()">
+                                <div class="icon">📊</div>
+                                <div class="title">Raport Z</div>
+                                <div class="desc">Închidere zi</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>📋 Istoric Mișcări</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Ora</th><th>Tip</th><th>Descriere</th><th>Suma</th><th>Sold</th><th>Operator</th></tr></thead>
+                                <tbody id="cashTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div class="tab-content" id="tab-inventory">
+                <div class="stats-grid" id="invStats">
+                    <div class="stat-card"><div class="stat-label">Total Produse</div><div class="stat-value" id="invTotal">0</div></div>
+                    <div class="stat-card success"><div class="stat-label">În Stoc</div><div class="stat-value" id="invOk">0</div></div>
+                    <div class="stat-card warning"><div class="stat-label">Stoc Scăzut</div><div class="stat-value" id="invLow">0</div></div>
+                    <div class="stat-card danger"><div class="stat-label">Epuizate</div><div class="stat-value" id="invOut">0</div></div>
+                    <div class="stat-card primary"><div class="stat-label">Valoare Stoc</div><div class="stat-value" id="invValue">0</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📦 Gestiune Stoc</h3>
+                        <div class="flex gap-2 admin-only">
+                            <button class="btn btn-secondary btn-sm" onclick="exportInventory()">📥 Export CSV</button>
+                            <button class="btn btn-primary btn-sm" onclick="printInventory()">🖨️ Raport</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="filters" id="invFilters">
+                            <button class="filter-btn active" data-filter="all">📦 Toate <span class="count" id="fAll">0</span></button>
+                            <button class="filter-btn" data-filter="ok">✅ OK <span class="count" id="fOk">0</span></button>
+                            <button class="filter-btn" data-filter="low">⚠️ Scăzut <span class="count" id="fLow">0</span></button>
+                            <button class="filter-btn" data-filter="critical">🔴 Critic <span class="count" id="fCrit">0</span></button>
+                            <button class="filter-btn" data-filter="out">❌ Epuizat <span class="count" id="fOut">0</span></button>
+                        </div>
+
+                        <div class="form-group" style="max-width:250px;">
+                            <select class="form-control" id="invCatFilter" onchange="loadInventory()">
+                                <option value="">Toate categoriile</option>
+                            </select>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table>
+                                 <thead>
+    								<tr>
+        								<th>Produs</th>	
+        								<th>Categorie</th>
+        								<th>Stoc</th>
+        								<th>Status</th>
+        								<th>Preț</th>
+        								<th>Cost</th>
+        								<th>Profit</th>
+        								<th>Val. Achiziție</th>
+        								<th>Val. Vânzare</th>
+        								<th>Acțiuni</th>
+    								</tr>
+								</thead>
+
+
+                                <tbody id="invTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+          
+<!-- Products Tab -->
+<div class="tab-content" id="tab-products">
+    <div class="card">
+        <div class="card-header">
+            <h3>🏷️ Gestionare Produse</h3>
+            <button class="btn btn-primary btn-sm admin-only" onclick="openProduct()">+ Adaugă Produs</button>
+        </div>
+        <div class="card-body">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produs</th>
+                            <th>Categorie</th>
+                            <th>Preț</th>
+                            <th>Stoc</th>
+                            <th>Status</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prodTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- INGREDIENTS SECTION -->
+<div id="tab-ingredients" class="tab-content">
+
+    <div class="section-header">
+        <h2>🧪 Ingrediente</h2>
+        <button class="btn btn-primary" onclick="openIngredient()">➕ Ingredient Nou</button>
+    </div>
+    
+    <!-- Alertă stoc scăzut -->
+    <div id="lowStockAlert" class="alert alert-warning mb-4" style="display:none;">
+        <strong>⚠️ Ingrediente cu stoc scăzut:</strong>
+        <span id="lowStockList"></span>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Unitate</th>
+                            <th>Stoc</th>
+                            <th>Stoc Minim</th>
+                            <th>Cost/Unitate</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ingredientsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+			
+           <!-- Reports Tab -->
+<div class="tab-content" id="tab-reports">
+    <div class="card mb-4">
+        <div class="card-header"><h3>📊 Rapoarte Vânzări</h3></div>
+        <div class="card-body">
+            <div class="flex gap-4 flex-wrap items-center mb-4">
+                <div class="form-group mb-0">
+                    <label>De la</label>
+                    <input type="date" class="form-control" id="repFrom">
+                </div>
+                <div class="form-group mb-0">
+                    <label>Până la</label>
+                    <input type="date" class="form-control" id="repTo">
+                </div>
+                <div class="form-group mb-0 admin-only">
+                    <label>Utilizator</label>
+                    <select class="form-control" id="repUserFilter">
+                        <option value="all">👥 Toți utilizatorii</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="genSalesReport()" style="margin-top:22px;">📊 Generează</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card primary"><div class="stat-label">Total Vânzări</div><div class="stat-value" id="repTotal">0</div></div>
+        <div class="stat-card success"><div class="stat-label">Numerar</div><div class="stat-value" id="repCash">0</div></div>
+        <div class="stat-card warning"><div class="stat-label">Card</div><div class="stat-value" id="repCard">0</div></div>
+        <div class="stat-card"><div class="stat-label">Tranzacții</div><div class="stat-value" id="repTx">0</div></div>
+    </div>
+
+    <!-- Sales by User - Admin Only -->
+    <div class="card mb-4 admin-only">
+        <div class="card-header"><h3>👥 Vânzări pe Utilizator</h3></div>
+        <div class="card-body">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Utilizator</th><th>Tranzacții</th><th>Total Vânzări</th></tr></thead>
+                    <tbody id="userSalesTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h3>🏆 Top Produse</h3></div>
+        <div class="card-body">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Produs</th><th>Cantitate</th><th>Încasări</th></tr></thead>
+                    <tbody id="topTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+            <!-- Settings Tab -->
+            <!-- Settings Tab -->
+<div class="tab-content" id="tab-settings">
+    
+    <!-- Users Management (Admin Only) -->
+    <div class="card mb-4 admin-only">
+        <div class="card-header">
+            <h3>👥 Gestionare Utilizatori</h3>
+            <button class="btn btn-primary btn-sm" onclick="openUserModal()">+ Adaugă Utilizator</button>
+        </div>
+        <div class="card-body">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+    					<tr>
+        					<th>Nume</th>
+        					<th>Parolă</th>
+        					<th>Rol</th>
+        					<th>Acțiuni</th>
+    					</tr>
+					</thead>
+
+                    <tbody id="usersTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+
+<!-- Categories Management (Admin Only) -->
+<div class="card mb-4 admin-only">
+    <div class="card-header">
+        <h3>📂 Gestionare Categorii</h3>
+        <button class="btn btn-primary btn-sm" onclick="openCategory()">+ Adaugă Categorie</button>
+    </div>
+    <div class="card-body">
+        
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Iconiță</th>
+                        <th>Nume</th>
+                        <th>Cod</th>
+                        <th>Ordine</th>
+                        <th>Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody id="categoriesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+	<!-- CASH REGISTER SETTINGS -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>🖨️ Configurare Casă de Marcat</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Marcă</label>
+                <select id="crBrand" onchange="updateCRModels()">
+                    <option value="">-- Selectează marca --</option>
+                    <option value="daisy">Daisy</option>
+                    <option value="datecs">Datecs</option>
+                    <option value="partner">Partner</option>
+                    <option value="tremol">Tremol</option>
+                    <option value="eltrade">Eltrade</option>
+                    <option value="activa">Activa</option>
+                    <option value="mercury">Mercury</option>
+                    <option value="custom">Altă marcă</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Model</label>
+                <select id="crModel" onchange="updateCRDriver()">
+                    <option value="">-- Selectează mai întâi marca --</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Driver / Protocol</label>
+                <select id="crDriver" onchange="updateCRPort()">
+                    <option value="fisco">Fisco HTTP API</option>
+                    <option value="datecs">Datecs Direct</option>
+                    <option value="tremol">Tremol SDK</option>
+                    <option value="serial">Port Serial (COM)</option>
+                    <option value="usb">USB Direct</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Port / Adresă API</label>
+                <input type="text" id="crPort" placeholder="ex: http://127.0.0.1:4040 sau COM3">
+            </div>
+        </div>
+        
+        <div class="form-divider"></div>
+        
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="crEnabled"> 
+                <span>Activează casa de marcat</span>
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="crPrintReceipt" checked> 
+                <span>Printează bon fiscal la fiecare vânzare</span>
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="crAutoReportX"> 
+                <span>Raport X automat la schimb de tură</span>
+            </label>
+        </div>
+        
+        <div class="form-divider"></div>
+        
+        <div class="cr-actions">
+            <button type="button" class="btn btn-secondary" onclick="testCashRegister()">
+                🔌 Testează Conexiunea
+            </button>
+            <button type="button" class="btn btn-info" onclick="sendCashRegisterCommand('report_x')">
+                📋 Raport X
+            </button>
+            <button type="button" class="btn btn-warning" onclick="sendCashRegisterCommand('report_z')">
+                📊 Raport Z
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveCRSettings()">
+                💾 Salvează
+            </button>
+        </div>
+        
+        <div id="crStatus" class="cr-status" style="display:none;"></div>
+    </div>
+</div>
+
+
+
+    <!-- Company Info (Admin Only) -->
+    <div class="card mb-4 admin-only">
+        <div class="card-header">
+            <h3>🏢 Date Firmă</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label>Nume Firmă</label>
+                <input type="text" class="form-control" id="settingCompanyName" placeholder="Ex: Bar Central SRL">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>CUI</label>
+                    <input type="text" class="form-control" id="settingCompanyCui" placeholder="Ex: RO12345678">
+                </div>
+                <div class="form-group">
+                    <label>Adresă</label>
+                    <input type="text" class="form-control" id="settingCompanyAddress" placeholder="Ex: Str. Principală nr. 1">
+                </div>
+            </div>
+            <button class="btn btn-success mt-4" onclick="saveAllSettings()">💾 Salvează Setările</button>
+        </div>
+    </div>
+
+    <!-- Theme Settings (All Users) -->
+    <div class="card">
+        <div class="card-header"><h3>🎨 Aspect</h3></div>
+        <div class="card-body">
+            <h4 class="mb-2">Temă</h4>
+            <div class="flex gap-2 mb-4">
+                <button class="btn btn-secondary" onclick="setTheme('light')">☀️ Light</button>
+                <button class="btn btn-secondary" onclick="setTheme('dark')">🌙 Dark</button>
+            </div>
+            <p class="text-muted">Organica POS v1.0 - Sistem de gestiune pentru bar/restaurant</p>
+        </div>
+    </div>
+</div>
+
+        </main>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal-overlay" id="payModal">
+        <div class="modal lg">
+            <div class="modal-header">
+                <h2>💳 Finalizare Plată</h2>
+                <button class="modal-close" onclick="closeModal('payModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="stat-card primary mb-4" style="text-align:center;border-left:none;">
+                    <div class="stat-label">Total de plată</div>
+                    <div class="stat-value" id="payTotal" style="font-size:32px;">0.00 RON</div>
+                </div>
+
+                <div class="payment-options">
+                    <div class="payment-btn" onclick="selectPay('cash')" id="payCash">
+                        <div class="icon">💵</div>
+                        <div class="label">NUMERAR</div>
+                    </div>
+                    <div class="payment-btn" onclick="selectPay('card')" id="payCard">
+                        <div class="icon">💳</div>
+                        <div class="label">CARD</div>
+                    </div>
+                </div>
+
+                <div class="cash-calc hidden" id="cashCalc">
+                    <div class="cash-row">
+                        <label>Primit:</label>
+                        <input type="number" class="form-control" id="cashIn" step="0.01" oninput="calcChange()">
+                    </div>
+                    <div class="change-box positive" id="changeBox">Rest: 0.00 RON</div>
+                </div>
+
+                <div class="alert alert-info hidden" id="cardInfo" style="text-align:center;">
+                    💳 Procesați plata pe terminalul POS bancar
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-lg" onclick="closeModal('payModal')">Anulează</button>
+                <button class="btn btn-success btn-lg" onclick="confirmPay()" id="confirmPayBtn" disabled>✅ Confirmă Plata</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cash Operation Modal -->
+    <div class="modal-overlay" id="cashOpModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="cashOpTitle">💵 Operațiune</h2>
+                <button class="modal-close" onclick="closeModal('cashOpModal')">✕</button>
+            </div>
+            <form id="cashOpForm">
+                <div class="modal-body">
+                    <input type="hidden" id="cashOpType">
+                    <div class="form-group">
+                        <label>Suma (RON)</label>
+                        <input type="number" class="form-control" id="cashOpAmount" step="0.01" min="0.01" required style="font-size:24px;text-align:center;">
+                    </div>
+                    <div class="form-group">
+                        <label>Descriere</label>
+                        <textarea class="form-control" id="cashOpDesc" rows="2"></textarea>
+                    </div>
+                    <div class="alert alert-warning hidden" id="cashOpWarn"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('cashOpModal')">Anulează</button>
+                    <button type="submit" class="btn btn-primary" id="cashOpBtn">Confirmă</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Adjust Modal -->
+    <div class="modal-overlay" id="stockModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📦 Ajustare Stoc</h2>
+                <button class="modal-close" onclick="closeModal('stockModal')">✕</button>
+            </div>
+            <form id="stockForm">
+                <div class="modal-body">
+                    <input type="hidden" id="stockProdId">
+                    <div class="alert alert-info" id="stockInfo"></div>
+                    <div class="form-group">
+                        <label>Tip Ajustare</label>
+                        <select class="form-control" id="stockType">
+                            <option value="set">Setează valoare nouă</option>
+                            <option value="add">Adaugă la stoc</option>
+                            <option value="remove">Scade din stoc</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantitate</label>
+                        <input type="number" class="form-control" id="stockQty" min="0" required style="font-size:20px;text-align:center;">
+                    </div>
+                    <div class="form-group">
+                        <label>Motiv</label>
+                        <textarea class="form-control" id="stockReason" rows="2" placeholder="Ex: Inventariere, Recepție marfă..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('stockModal')">Anulează</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvează</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+   <!-- Product Modal -->
+<div class="modal-overlay" id="prodModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="prodModalTitle">🏷️ Produs</h2>
+            <button class="modal-close" onclick="closeModal('prodModal')">✕</button>
+        </div>
+        <form id="prodForm">
+            <div class="modal-body">
+                <input type="hidden" id="prodId">
+                <div class="form-group">
+                    <label>Nume Produs</label>
+                    <input type="text" class="form-control" id="prodName" required placeholder="Ex: Heineken 500ml">
+                </div>
+                <div class="form-group">
+                    <label>Categorie</label>
+                    <select class="form-control" id="prodCat" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Iconiță Produs</label>
+                    <select class="form-control" id="prodIcon">
+                        <option value=":beer:">🍺 Bere</option>
+                        <option value=":wine:">🍷 Vin</option>
+                        <option value=":whisky:">🥃 Spirtoase</option>
+                        <option value=":cocktail:">🍹 Cocktail</option>
+                        <option value=":juice:">🥤 Suc</option>
+                        <option value=":coffee:">☕ Cafea</option>
+                        <option value=":tea:">🍵 Ceai</option>
+                        <option value=":water:">💧 Apă</option>
+                        <option value=":snack:">🍿 Snack</option>
+                        <option value=":food:">🍔 Mâncare</option>
+                        <option value=":pizza:">🍕 Pizza</option>
+                        <option value=":burger:">🍔 Burger</option>
+                        <option value=":fries:">🍟 Cartofi</option>
+                        <option value=":cake:">🍰 Desert</option>
+                        <option value=":ice:">🧊 Gheață</option>
+                        <option value=":lemon:">🍋 Lămâie</option>
+                        <option value=":orange:">🍊 Portocală</option>
+                        <option value=":apple:">🍎 Măr</option>
+                        <option value=":energy:">⚡ Energizant</option>
+                        <option value=":box:">📦 Altele</option>
+                    </select>
+                </div>
+                <div class="grid-2">
+                   <div class="form-row">
+					    <div class="form-group">
+        					<label>Preț vânzare (RON)</label>
+        					<input type="number" id="prodPrice" step="0.01" min="0" required>
+    					</div>
+    			   <div class="form-group">
+        				<label>Cost achiziție (RON)</label>
+        				<input type="number" id="prodCost" step="0.01" min="0" value="0">
+    				</div>
+				</div>
+				<div class="form-row">
+    				<div class="form-group">
+        				<label>Stoc</label>
+        				<input type="number" id="prodStock" min="0" value="0">
+    				</div>
+    					<div class="form-group">
+        				<label>Stoc minim (alertă)</label>
+        				<input type="number" id="prodMinStock" min="0" value="5">
+    				</div>
+				</div>
+                </div>
+				  <!-- TIP PRODUS - TREBUIE SĂ FIE AICI, ÎN FORMULAR -->
+            <div class="form-group">
+                <label>Tip Produs</label>
+                <div class="product-type-toggle">
+                    <div class="product-type-btn active" id="typeSimple" onclick="setProductType('simple')">
+                        <span class="icon">🍺</span>
+                        Simplu
+                    </div>
+                    <div class="product-type-btn" id="typeComplex" onclick="setProductType('complex')">
+                        <span class="icon">🍹</span>
+                        Complex (cu rețetă)
+                    </div>
+                </div>
+                <input type="hidden" id="prodType" value="simple">
+            </div>
+				<!--pana aici -->
+                <div class="form-group">
+                    <label>Stoc Minim (alertă)</label>
+                    <input type="number" class="form-control" id="prodMinStock" min="0" value="5">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('prodModal')">Anulează</button>
+                <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+    <!-- Report Modal -->
+    <div class="modal-overlay" id="repModal">
+        <div class="modal lg">
+            <div class="modal-header">
+                <h2 id="repModalTitle">📊 Raport</h2>
+                <button class="modal-close" onclick="closeModal('repModal')">✕</button>
+            </div>
+            <div class="modal-body" id="repModalBody"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="printModalContent()">🖨️ Printează</button>
+                <button class="btn btn-primary" onclick="closeModal('repModal')">Închide</button>
+            </div>
+        </div>
+    </div>
+	<!-- User Modal -->
+<div class="modal-overlay" id="userModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="userModalTitle">👤 Utilizator</h2>
+            <button class="modal-close" onclick="closeModal('userModal')">✕</button>
+        </div>
+        <form id="userForm">
+            <div class="modal-body">
+                <input type="hidden" id="visibleUserId">
+                <div class="form-group">
+                    <label>Nume Utilizator</label>
+                    <input type="text" class="form-control" id="userNameInput" required>
+                </div>
+                <div class="form-group">
+                    <label>Parolă</label>
+                    <input type="text" class="form-control" id="userPassInput" required>
+                    <small class="text-muted">Parola este vizibilă pentru admin</small>
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select class="form-control" id="userRoleInput">
+                        <option value="operator">Operator</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div class="form-group" id="userActiveGroup" style="display:none;">
+                    <label>Status</label>
+                    <select class="form-control" id="userActiveInput">
+                        <option value="true">Activ</option>
+                        <option value="false">Inactiv</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Anulează</button>
+                <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <!-- Receipt Modal -->
+    <div class="modal-overlay" id="receiptModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>✅ Vânzare Finalizată!</h2>
+                <button class="modal-close" onclick="closeModal('receiptModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success" id="receiptStatus"></div>
+                <div class="receipt" id="receiptContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-block" onclick="closeModal('receiptModal')">OK</button>
+            </div>
+        </div>
+    </div>
+
+<!-- Category Modal -->
+<div class="modal-overlay" id="catModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="catModalTitle">📂 Categorie</h2>
+            <button class="modal-close" onclick="closeModal('catModal')">✕</button>
+        </div>
+        <form id="catForm">
+            <div class="modal-body">
+                <input type="hidden" id="catId">
+                <div class="form-group">
+                    <label>Nume Categorie</label>
+                    <input type="text" class="form-control" id="catName" required placeholder="Ex: Bere">
+                </div>
+                <div class="form-group">
+                    <label>Cod Iconiță</label>
+                    <select class="form-control" id="catIcon">
+                        <option value=":beer:">🍺 :beer: - Bere</option>
+                        <option value=":wine:">🍷 :wine: - Vin</option>
+                        <option value=":whisky:">🥃 :whisky: - Spirtoase</option>
+                        <option value=":cocktail:">🍹 :cocktail: - Cocktail</option>
+                        <option value=":juice:">🥤 :juice: - Sucuri</option>
+                        <option value=":coffee:">☕ :coffee: - Cafea</option>
+                        <option value=":snack:">🍿 :snack: - Snacks</option>
+                        <option value=":water:">💧 :water: - Apă</option>
+                        <option value=":food:">🍔 :food: - Mâncare</option>
+                        <option value=":box:">📦 :box: - Altele</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ordine Afișare</label>
+                    <input type="number" class="form-control" id="catOrder" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('catModal')">Anulează</button>
+                <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+	
+
+	
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="confirmTitle">⚠️ Confirmare</h2>
+                <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMsg" class="text-muted"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Anulează</button>
+                <button class="btn btn-danger" onclick="execConfirm()" id="confirmBtn">Confirmă</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="userModalTitle">👤 Utilizator</h2>
+                <button class="modal-close" onclick="closeModal('userModal')">✕</button>
+            </div>
+            <form id="userForm">
+                <div class="modal-body">
+                    <input type="hidden" id="visibleUserId">
+                    <div class="form-group">
+                        <label>Nume Utilizator</label>
+                        <input type="text" class="form-control" id="userNameInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Parolă</label>
+                        <input type="text" class="form-control" id="userPassInput" required>
+                        <small class="text-muted">Parola este vizibilă pentru admin</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select class="form-control" id="userRoleInput">
+                            <option value="operator">Operator</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="userActiveGroup" style="display:none;">
+                        <label>Status</label>
+                        <select class="form-control" id="userActiveInput">
+                            <option value="true">Activ</option>
+                            <option value="false">Inactiv</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Anulează</button>
+                    <button type="submit" class="btn btn-primary">💾 Salvează</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- Category Modal -->
+<div class="modal-overlay" id="catModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="catModalTitle">📂 Categorie</h2>
+            <button class="modal-close" onclick="closeModal('catModal')">✕</button>
+        </div>
+        <form id="catForm">
+            <div class="modal-body">
+                <input type="hidden" id="catId">
+                <div class="form-group">
+                    <label>Nume Categorie</label>
+                    <input type="text" class="form-control" id="catName" required placeholder="Ex: Bere">
+                </div>
+                <div class="form-group">
+                    <label>Cod Iconiță</label>
+                    <input type="text" class="form-control" id="catIcon" placeholder="Ex: :beer:">
+                    <small class="text-muted">Coduri: :beer: :wine: :whisky: :cocktail: :juice: :coffee: :snack: :water:</small>
+                </div>
+                <div class="form-group">
+                    <label>Ordine Afișare</label>
+                    <input type="number" class="form-control" id="catOrder" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Previzualizare:</label>
+                    <div id="catPreview" style="font-size: 32px; padding: 10px; background: var(--bg-tertiary); border-radius: 8px; text-align: center;">📦</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('catModal')">Anulează</button>
+                <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- INGREDIENT MODAL -->
+<div class="modal-overlay" id="ingredientModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="ingredientModalTitle">➕ Ingredient Nou</h3>
+            <button class="btn-close" onclick="closeModal('ingredientModal')">✕</button>
+        </div>
+        <form id="ingredientForm">
+            <input type="hidden" id="ingId">
+            <div class="form-group">
+                <label>Nume ingredient</label>
+                <input type="text" id="ingName" required placeholder="ex: Vodka, Rom, Lime...">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Unitate de măsură</label>
+                    <select id="ingUnit">
+                        <option value="ml">ml (mililitri)</option>
+                        <option value="l">l (litri)</option>
+                        <option value="g">g (grame)</option>
+                        <option value="kg">kg (kilograme)</option>
+                        <option value="buc">buc (bucăți)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cost per unitate (RON)</label>
+                    <input type="number" id="ingCost" step="0.01" min="0" value="0" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Stoc actual</label>
+                    <input type="number" id="ingStock" step="0.001" min="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Stoc minim (alertă)</label>
+                    <input type="number" id="ingMinStock" step="0.001" min="0" value="0">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('ingredientModal')">Anulează</button>
+                <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SUPPLY MODAL -->
+<div class="modal-overlay" id="supplyModal">
+    <div class="modal sm">
+        <div class="modal-header">
+            <h3>📦 Aprovizionare</h3>
+            <button class="btn-close" onclick="closeModal('supplyModal')">✕</button>
+        </div>
+        <form id="supplyForm">
+            <input type="hidden" id="supplyIngId">
+            <div class="form-group">
+                <label>Ingredient: <strong id="supplyIngName"></strong></label>
+            </div>
+            <div class="form-group">
+                <label>Cantitate de adăugat</label>
+                <input type="number" id="supplyQty" step="0.001" min="0.001" required>
+                <small class="text-muted">Stoc actual: <span id="supplyCurrentStock"></span></small>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('supplyModal')">Anulează</button>
+                <button type="submit" class="btn btn-success">📦 Adaugă în stoc</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- RECIPE MODAL -->
+<div class="modal-overlay" id="recipeModal">
+    <div class="modal lg">
+        <div class="modal-header">
+            <h3>📋 Rețetă: <span id="recipeProductName"></span></h3>
+            <button class="btn-close" onclick="closeModal('recipeModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="recipeProductId">
+            
+            <div class="recipe-builder">
+                <div class="recipe-add">
+                    <select id="recipeIngredientSelect" class="form-control">
+                        <option value="">-- Selectează ingredient --</option>
+                    </select>
+                    <input type="number" id="recipeIngredientQty" step="0.001" min="0.001" placeholder="Cantitate">
+                    <button type="button" class="btn btn-primary" onclick="addRecipeIngredient()">➕</button>
+                </div>
+                
+                <div class="recipe-list" id="recipeList">
+                    <!-- Ingredientele rețetei vor fi aici -->
+                </div>
+                
+                <div id="recipeCost" class="recipe-cost" style="display:none;">
+                    <strong>💰 Cost total rețetă: <span id="recipeTotalCost">0.00</span> RON</strong>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('recipeModal')">Anulează</button>
+                <button type="button" class="btn btn-success" onclick="saveRecipe()">💾 Salvează Rețeta</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+// ================================================
+// CONFIG & STATE
+// ================================================
+const API = '/api';
+let token = sessionStorage.getItem('pos_token');
+let user = null;
+let categories = [];
+let products = [];
+let cart = [];
+let selectedCat = null;
+let invFilter = 'all';
+let payMethod = null;
+let confirmCb = null;
+let appSettings = {};
+
+// ================================================
+// HELPERS
+// ================================================
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+const show = el => el?.classList.remove('hidden');
+const hide = el => el?.classList.add('hidden');
+const fmt = n => parseFloat(n || 0).toFixed(2);
+
+const ICON_MAP = {
+    ':beer:': '🍺', ':wine:': '🍷', ':whisky:': '🥃', ':spirits:': '🥃',
+    ':cocktail:': '🍹', ':juice:': '🥤', ':soda:': '🥤', ':raco:': '🥤',
+    ':coffee:': '☕', ':tea:': '🍵', ':snack:': '🍿', ':food:': '🍔',
+    ':water:': '💧', ':energy:': '⚡', ':ice:': '🧊', ':lemon:': '🍋',
+    ':orange:': '🍊', ':apple:': '🍎', ':pizza:': '🍕', ':burger:': '🍔',
+    ':fries:': '🍟', ':cake:': '🍰', ':candy:': '🍬', ':box:': '📦'
+};
+
+function getIcon(iconCode) {
+    if (!iconCode) return '📦';
+    if (ICON_MAP[iconCode]) return ICON_MAP[iconCode];
+    if (iconCode.length <= 4 && !/^:.*:$/.test(iconCode)) return iconCode;
+    return '📦';
+}
+
+function loading(on) {
+    $('loading').classList.toggle('active', on);
+}
+
+function toast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    $('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+function openModal(id) { $(id).classList.add('active'); }
+function closeModal(id) { $(id).classList.remove('active'); }
+
+async function api(endpoint, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    try {
+        const res = await fetch(`${API}/${endpoint}`, { ...options, headers });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            if (res.status === 401) { 
+                token = null; 
+                sessionStorage.removeItem('pos_token'); 
+                showLogin(); 
+            }
+            throw new Error(data.error || 'Eroare server');
+        }
+        return data;
+    } catch (e) {
+        console.error('API Error:', e);
+        throw e;
+    }
+}
+
+// ================================================
+// THEME
+// ================================================
+function setTheme(t) {
+    document.body.dataset.theme = t;
+    localStorage.setItem('pos_theme', t);
+}
+
+function toggleTheme() {
+    setTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark');
+}
+
+function loadTheme() {
+    setTheme(localStorage.getItem('pos_theme') || 'light');
+}
+
+// ================================================
+// AUTH
+// ================================================
+function showLogin() {
+    $('loginPage').style.display = 'flex';
+    $('app').style.display = 'none';
+}
+
+// Toggle vizibilitate parolă
+function togglePassword(userId) {
+    const hidden = $('pass-' + userId);
+    const visible = $('passText-' + userId);
+    const icon = $('eyeIcon-' + userId);
+    
+    if (hidden.style.display !== 'none') {
+        // Arată parola
+        hidden.style.display = 'none';
+        visible.style.display = 'inline';
+        icon.textContent = '🙈';
+        
+        // Ascunde automat după 3 secunde
+        setTimeout(() => {
+            hidden.style.display = 'inline';
+            visible.style.display = 'none';
+            icon.textContent = '👁️';
+        }, 3000);
+    } else {
+        // Ascunde parola
+        hidden.style.display = 'inline';
+        visible.style.display = 'none';
+        icon.textContent = '👁️';
+    }
+}
+
+function showApp() {
+    $('loginPage').style.display = 'none';
+    $('app').style.display = 'block';
+    
+    // Adaugă clasa de rol pe body
+    document.body.classList.remove('role-admin', 'role-operator');
+    document.body.classList.add('role-' + (user?.role || 'operator'));
+}
+
+$('loginForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    try {
+        const res = await api('auth?action=login', {
+            method: 'POST',
+            body: JSON.stringify({
+                username: $('loginUser').value,
+                password: $('loginPass').value
+            })
+        });
+        if (res.success) {
+            token = res.data.token;
+            sessionStorage.setItem('pos_token', token);
+            user = res.data.user;
+            showApp();
+            initApp();
+			startAutoSync();
+            toast('Autentificare reușită!');
+        }
+    } catch (e) {
+        $('loginError').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+    loading(false);
+};
+
+async function logout() {
+	stopAutoSync();
+	document.body.classList.remove('role-admin', 'role-operator');
+    loading(true);
+    try { await api('auth?action=logout', { method: 'POST' }); } catch {}
+    token = null;
+    sessionStorage.removeItem('pos_token');
+    user = null;
+    cart = [];
+    showLogin();
+    loading(false);
+}
+
+async function checkAuth() {
+    if (!token) return showLogin();
+    loading(true);
+    try {
+        const res = await api('auth?action=check');
+        if (res.success) {
+            user = res.data.user;
+            showApp();
+            initApp();
+			startAutoSync();
+        } else showLogin();
+    } catch { showLogin(); }
+    loading(false);
+}
+
+// ================================================
+// AUTO SYNC - Sincronizare automată la 30 secunde
+// ================================================
+let syncInterval = null;
+
+function startAutoSync() {
+    // Oprește intervalul existent dacă există
+    if (syncInterval) clearInterval(syncInterval);
+    
+    // Pornește sincronizarea la fiecare 30 secunde
+    syncInterval = setInterval(async () => {
+        if (!user) return; // Nu sincroniza dacă nu e logat
+        
+        try {
+            // Reîncarcă produsele
+            await loadProducts();
+            
+            // Reîncarcă ingredientele dacă există funcția
+            if (typeof loadIngredients === 'function') {
+                await loadIngredients();
+            }
+            
+            // Actualizează UI-ul în funcție de tab-ul activ
+            const activeTab = document.querySelector('.nav-item.active')?.dataset?.tab;
+            
+            if (activeTab === 'inventory') {
+                renderInventory();
+            } else if (activeTab === 'products') {
+                loadProdTable();
+            } else if (activeTab === 'ingredients') {
+                loadIngredientsTable();
+            } else if (activeTab === 'pos') {
+                renderProducts();
+            } else if (activeTab === 'cash') {
+                loadCashSummary();
+            }
+            
+            console.log('🔄 Sync completat:', new Date().toLocaleTimeString());
+        } catch (e) {
+            console.error('Eroare sincronizare:', e);
+        }
+    }, 30000); // 30 secunde
+    
+    console.log('✅ Auto-sync pornit (30s)');
+}
+
+function stopAutoSync() {
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+        console.log('⏹️ Auto-sync oprit');
+    }
+}
+
+	
+// ================================================
+// APP INIT
+// ================================================
+async function initApp() {
+    $('userAvatar').textContent = user.name[0].toUpperCase();
+    $('userName').textContent = user.name;
+    $('userRole').textContent = user.role === 'admin' ? 'Administrator' : 'Operator';
+    
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = user.role === 'admin' ? 'block' : 'none';
+    });
+    
+    initTabs();
+    initFilters();
+    
+    await loadCategories();
+    await loadProducts();
+    await loadCashSummary();
+    
+    const today = new Date().toISOString().split('T')[0];
+    if ($('repFrom')) $('repFrom').value = today;
+    if ($('repTo')) $('repTo').value = today;
+    
+    updateTime();
+    setInterval(updateTime, 1000);
+}
+
+function initTabs() {
+    $$('.nav-item').forEach(tab => {
+        tab.onclick = () => {
+            $$('.nav-item').forEach(t => t.classList.remove('active'));
+            $$('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            $(`tab-${tab.dataset.tab}`).classList.add('active');
+            
+            switch(tab.dataset.tab) {
+                case 'cash': loadCashSummary(); loadCashTx(); break;
+                case 'inventory': loadInventory(); break;
+                case 'products': loadProdTable(); break;
+                case 'settings': loadUsers(); loadCategoriesTable(); loadSettings(); break;
+                case 'reports': loadUserFilter(); break;
+				case 'ingredients': loadIngredientsTable();break;
+	
+            }
+        };
+    });
+}
+
+function initFilters() {
+    $$('#invFilters .filter-btn').forEach(btn => {
+        btn.onclick = () => {
+            $$('#invFilters .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            invFilter = btn.dataset.filter;
+            loadInventory();
+        };
+    });
+}
+
+function updateTime() {
+    $('headerTime').textContent = new Date().toLocaleString('ro-RO');
+}
+
+// ================================================
+// CATEGORIES
+// ================================================
+async function loadCategories() {
+    try {
+        const res = await api('categories');
+        if (res.success) {
+            categories = (res.data || []).map(cat => ({
+                ...cat,
+                icon: getIcon(cat.icon)
+            }));
+            renderCategories();
+            populateCatSelects();
+        }
+    } catch (e) { console.error('Categories error:', e); }
+}
+
+function renderCategories() {
+    const container = $('categories');
+    if (!container) return;
+    
+    let html = `<button class="category-btn ${!selectedCat ? 'active' : ''}" onclick="selectCat(null)">🏪 Toate</button>`;
+    categories.forEach(c => {
+        html += `<button class="category-btn ${selectedCat === c.id ? 'active' : ''}" onclick="selectCat(${c.id})">${c.icon || '📦'} ${c.name}</button>`;
+    });
+    container.innerHTML = html;
+}
+
+function populateCatSelects() {
+    const opts = categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    if ($('prodCat')) $('prodCat').innerHTML = opts;
+    if ($('invCatFilter')) $('invCatFilter').innerHTML = `<option value="">Toate categoriile</option>${opts}`;
+}
+
+function selectCat(id) {
+    selectedCat = id;
+    renderCategories();
+    renderProducts();
+}
+
+// ================================================
+// PRODUCTS
+// ================================================
+async function loadProducts() {
+    try {
+        const res = await api('products');
+        if (res.success) {
+            products = res.data || [];
+            renderProducts();
+        }
+    } catch (e) { console.error('Products error:', e); }
+}
+
+function renderProducts() {
+    const container = $('products');
+    if (!container) return;
+    
+    let list = products;
+    if (selectedCat) list = products.filter(p => p.category_id == selectedCat);
+    
+    if (!list.length) {
+        container.innerHTML = '<div class="cart-empty"><div class="icon">📦</div><div>Niciun produs</div></div>';
+        return;
+    }
+    
+    container.innerHTML = list.map(p => {
+        const cat = categories.find(c => c.id == p.category_id);
+        const icon = getIcon(p.icon) || (cat ? cat.icon : '📦');
+        const stockClass = p.stock <= 0 ? 'out' : p.stock <= (p.min_stock || 5) ? 'low' : '';
+        return `
+            <div class="product-card ${p.stock <= 0 ? 'disabled' : ''}" onclick="addToCart(${p.id})">
+                <div class="emoji">${icon}</div>
+                <div class="name">${p.name}</div>
+                <div class="price">${fmt(p.price)} RON</div>
+                <div class="stock ${stockClass}">Stoc: ${p.stock}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ================================================
+// PRODUCTS TABLE (Admin only edit/delete)
+// ================================================
+async function loadProdTable() {
+    if (categories.length === 0) await loadCategories();
+    await loadProducts();
+    
+    const tableBody = $('prodTable');
+    if (!tableBody) return;
+    
+    if (products.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Niciun produs.</td></tr>';
+        return;
+    }
+    
+    const isAdmin = user && user.role === 'admin';
+    
+    tableBody.innerHTML = products.map(p => {
+        const cat = categories.find(c => c.id == p.category_id);
+        const icon = getIcon(p.icon) || (cat ? cat.icon : '📦');
+        const status = p.stock <= 0 ? 'out' : p.stock <= (p.min_stock || 5) ? 'low' : 'ok';
+        const statusBadge = status === 'ok' ? 'badge-success' : status === 'low' ? 'badge-warning' : 'badge-danger';
+        const statusText = status === 'ok' ? 'În stoc' : status === 'low' ? 'Stoc scăzut' : 'Epuizat';
+        
+        // NOU: Badge pentru tip produs
+        const typeBadge = p.product_type === 'complex' ? 
+            '<span class="badge-complex">🍹 Complex</span>' : 
+            '<span class="badge-simple">📦 Simplu</span>';
+        
+        // NOU: Buton pentru rețetă
+        const recipeBtn = isAdmin ? (p.product_type === 'complex' ? 
+            `<button class="btn btn-info btn-sm" onclick="openRecipe(${p.id})" title="Rețetă">📋</button>` : 
+            `<button class="btn btn-secondary btn-sm" onclick="openRecipe(${p.id})" title="Adaugă rețetă">📋</button>`) : '';
+        
+        const actionButtons = isAdmin ? `
+            <div style="display:flex;gap:6px;">
+                ${recipeBtn}
+                <button class="btn btn-secondary btn-sm" onclick="openProduct(${p.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">🗑️</button>
+            </div>
+        ` : '<span class="text-muted">-</span>';
+        
+        return `
+            <tr>
+                <td><span style="font-size:18px;">${icon}</span> <strong>${p.name}</strong> ${typeBadge}</td>
+                <td>${cat?.name || '-'}</td>
+                <td><strong>${fmt(p.price)} RON</strong></td>
+                <td><span class="badge ${statusBadge}">${p.stock}</span></td>
+                <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                <td>${actionButtons}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openProduct(id = null) {
+    if (!user || user.role !== 'admin') {
+        toast('⛔ Doar administratorii pot modifica produsele!', 'error');
+        return;
+    }
+    
+    const p = id ? products.find(x => x.id === id) : null;
+    $('prodModalTitle').textContent = p ? '✏️ Editare Produs' : '➕ Produs Nou';
+    $('prodId').value = p?.id || '';
+    $('prodName').value = p?.name || '';
+    $('prodCat').value = p?.category_id || (categories[0]?.id || '');
+    $('prodIcon').value = p?.icon || ':box:';
+    $('prodPrice').value = p?.price || '';
+	$('prodCost').value = p?.cost || 0;
+    $('prodStock').value = p?.stock ?? 0;
+    $('prodMinStock').value = p?.min_stock ?? 5;
+    openModal('prodModal');
+}
+
+function deleteProduct(id) {
+    if (!user || user.role !== 'admin') {
+        toast('⛔ Doar administratorii pot șterge produse!', 'error');
+        return;
+    }
+    
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    
+    showConfirm('🗑️ Șterge Produs', `Sigur ștergeți "${p.name}"?`, async () => {
+        loading(true);
+        try {
+            const res = await api('products?action=delete', {
+                method: 'POST',
+                body: JSON.stringify({ id })
+            });
+            if (res.success) {
+                toast('Produs șters!');
+                await loadProducts();
+                await loadProdTable();
+            }
+        } catch (e) { toast(e.message, 'error'); }
+        loading(false);
+    });
+}
+
+$('prodForm').onsubmit = async e => {
+    e.preventDefault();
+    if (!user || user.role !== 'admin') {
+        toast('⛔ Doar administratorii pot salva produse!', 'error');
+        return;
+    }
+    loading(true);
+    try {
+        const id = $('prodId').value;
+        const res = await api(`products?action=${id ? 'update' : 'create'}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                id: id || undefined,
+                name: $('prodName').value,
+                category_id: parseInt($('prodCat').value),
+                icon: $('prodIcon').value,
+                price: parseFloat($('prodPrice').value),
+				cost: parseFloat($('prodCost').value) || 0,
+                stock: parseInt($('prodStock').value),
+                min_stock: parseInt($('prodMinStock').value)
+            })
+        });
+        if (res.success) {
+            closeModal('prodModal');
+            toast(id ? 'Produs actualizat!' : 'Produs adăugat!');
+            await loadProducts();
+            await loadProdTable();
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+};
+
+// ================================================
+// CART
+// ================================================
+function addToCart(id) {
+    const p = products.find(x => x.id === id);
+    if (!p || p.stock <= 0) return;
+    
+    const item = cart.find(x => x.id === id);
+    if (item) {
+        if (item.qty < p.stock) item.qty++;
+        else { toast('Stoc insuficient!', 'warning'); return; }
+    } else {
+        cart.push({ id, name: p.name, price: parseFloat(p.price), qty: 1, max: p.stock });
+    }
+    renderCart();
+}
+
+function updateQty(id, d) {
+    const item = cart.find(x => x.id === id);
+    if (!item) return;
+    item.qty += d;
+    if (item.qty <= 0) cart = cart.filter(x => x.id !== id);
+    else if (item.qty > item.max) { item.qty = item.max; toast('Stoc maxim!', 'warning'); }
+    renderCart();
+}
+
+function renderCart() {
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    
+    if (!cart.length) {
+        $('cartItems').innerHTML = `<div class="cart-empty"><div class="icon">🛒</div><div>Coșul este gol</div></div>`;
+    } else {
+        $('cartItems').innerHTML = cart.map(i => `
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${i.name}</div>
+                    <div class="cart-item-price">${fmt(i.price)} × ${i.qty}</div>
+                </div>
+                <div class="cart-item-qty">
+                    <button class="qty-btn" onclick="updateQty(${i.id},-1)">−</button>
+                    <span>${i.qty}</span>
+                    <button class="qty-btn" onclick="updateQty(${i.id},1)">+</button>
+                </div>
+                <div class="cart-item-total">${fmt(i.price * i.qty)}</div>
+            </div>
+        `).join('');
+    }
+    
+    $('cartCount').textContent = `${cart.length} produse`;
+    $('cartTotal').textContent = `${fmt(total)} RON`;
+    $('btnPay').disabled = !cart.length;
+}
+
+function clearCart() {
+    cart = [];
+    renderCart();
+}
+
+// ================================================
+// PAYMENT
+// ================================================
+function openPayment() {
+    if (!cart.length) return;
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    $('payTotal').textContent = `${fmt(total)} RON`;
+    payMethod = null;
+    $('payCash').classList.remove('selected');
+    $('payCard').classList.remove('selected');
+    hide($('cashCalc'));
+    hide($('cardInfo'));
+    $('cashIn').value = '';
+    $('confirmPayBtn').disabled = true;
+    openModal('payModal');
+}
+
+function selectPay(method) {
+    payMethod = method;
+    $('payCash').classList.toggle('selected', method === 'cash');
+    $('payCard').classList.toggle('selected', method === 'card');
+    
+    if (method === 'cash') {
+        show($('cashCalc'));
+        hide($('cardInfo'));
+        $('cashIn').focus();
+        calcChange();
+    } else {
+        hide($('cashCalc'));
+        show($('cardInfo'));
+        $('confirmPayBtn').disabled = false;
+    }
+}
+
+function calcChange() {
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const received = parseFloat($('cashIn').value) || 0;
+    const change = received - total;
+    
+    const box = $('changeBox');
+    box.classList.toggle('positive', change >= 0);
+    box.classList.toggle('negative', change < 0);
+    box.textContent = change >= 0 ? `Rest: ${fmt(change)} RON` : `Lipsă: ${fmt(Math.abs(change))} RON`;
+    $('confirmPayBtn').disabled = change < 0;
+}
+
+async function confirmPay() {
+    if (!payMethod || !cart.length) return;
+    
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const cashIn = payMethod === 'cash' ? (parseFloat($('cashIn').value) || total) : 0;
+    const saleNumber = Date.now().toString();
+    
+    closeModal('payModal');
+    loading(true);
+    
+    try {
+        const res = await api('sales?action=create', {
+            method: 'POST',
+            body: JSON.stringify({
+                items: cart.map(i => ({ product_id: i.id, name: i.name, quantity: i.qty, price: i.price })),
+                payment_method: payMethod,
+                cash_received: cashIn,
+                total: total,
+                user_id: user.id,
+                user_name: user.name,
+                sale_number: saleNumber
+            })
+        });
+        
+        if (res.success) {
+            const change = cashIn - total;
+            
+            // Printează bon fiscal pe casa de marcat
+            const crSettings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+            if (crSettings.enabled && crSettings.printReceipt) {
+                try {
+                    await printFiscalReceipt({
+                        items: cart.map(i => ({ name: i.name, quantity: i.qty, price: i.price })),
+                        total: total,
+                        payment_method: payMethod,
+                        cash_received: cashIn
+                    });
+                } catch (crError) {
+                    console.error('Eroare printare bon fiscal:', crError);
+                    toast('Vânzare salvată, dar eroare la casa de marcat: ' + crError.message, 'warning');
+                }
+            }
+            
+            $('receiptContent').innerHTML = `
+                <div class="receipt-header">
+                    <div class="receipt-title">Organica POS</div>
+                    <div>${new Date().toLocaleString('ro-RO')}</div>
+                    <div>Operator: ${user.name}</div>
+                </div>
+                ${cart.map(i => `<div class="receipt-row"><span>${i.name} × ${i.qty}</span><span>${fmt(i.price * i.qty)}</span></div>`).join('')}
+                <div class="receipt-divider"></div>
+                <div class="receipt-row receipt-total"><span>TOTAL:</span><span>${fmt(total)} RON</span></div>
+                <div class="receipt-row"><span>${payMethod === 'cash' ? 'Numerar' : 'Card'}:</span><span>${fmt(payMethod === 'cash' ? cashIn : total)}</span></div>
+                ${change > 0 ? `<div class="receipt-row"><span>Rest:</span><span>${fmt(change)}</span></div>` : ''}
+            `;
+            openModal('receiptModal');
+            
+            cart = [];
+            renderCart();
+            await loadProducts();
+            await loadCashSummary();
+            toast('Vânzare finalizată!');
+        }
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+    
+    loading(false);
+}
+
+// Funcție pentru printare bon fiscal
+async function printFiscalReceipt(saleData) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.printReceipt) {
+        return { success: true, skipped: true };
+    }
+    
+    const driver = settings.driver;
+    const port = settings.port;
+    
+    if (driver === 'fisco') {
+        // Construiește comenzile pentru Fisco
+        const commands = saleData.items.map(item => {
+            const price = Math.round(item.price * 100); // în bani
+            const qty = Math.round(item.quantity * 1000); // în miimi
+            // S^nume^pret^cantitate^um^cotaTVA^departament
+            return `S^${item.name.substring(0, 30)}^${price}^${qty}^buc^2^1`;
+        });
+        
+        // Adaugă plata: P^tipPlata^suma (1=numerar, 2=card)
+        const totalCents = Math.round(saleData.total * 100);
+        const paymentType = saleData.payment_method === 'card' ? '2' : '1';
+        commands.push(`P^${paymentType}^${totalCents}`);
+        
+        const response = await fetch(`${port}/api/v1/print`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                syntax: 'simplu',
+                version: '1.0',
+                commands
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!result.ok) {
+            throw new Error(result.error?.message || 'Eroare printare bon');
+        }
+        
+        return { success: true, data: result };
+        
+    } else if (driver === 'datecs') {
+        // Protocol Datecs
+        const items = saleData.items.map(item => ({
+            name: item.name.substring(0, 30),
+            price: item.price,
+            quantity: item.quantity,
+            taxGroup: 'B'
+        }));
+        
+        const response = await fetch(`${port}/fiscal/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items,
+                payments: [{
+                    type: saleData.payment_method === 'card' ? 'card' : 'cash',
+                    amount: saleData.total
+                }]
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        return { success: true, data: result };
+        
+    } else if (driver === 'tremol') {
+        // Protocol Tremol
+        const response = await fetch(`${port}/api/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: saleData.items.map(item => ({
+                    text: item.name,
+                    price: item.price,
+                    qty: item.quantity,
+                    taxCode: 2
+                })),
+                payment: {
+                    type: saleData.payment_method === 'card' ? 1 : 0,
+                    amount: saleData.total
+                }
+            })
+        });
+        
+        const result = await response.json();
+        return { success: true, data: result };
+    }
+    
+    throw new Error('Driver necunoscut');
+}
+
+// ================================================
+// CASH MANAGEMENT
+// ================================================
+async function loadCashSummary() {
+    try {
+        const res = await api('cash?action=summary');
+        if (res.success) {
+            const d = res.data;
+            if ($('cashOpen')) $('cashOpen').textContent = fmt(d.opening || 0);
+            if ($('cashSales')) $('cashSales').textContent = fmt(d.sales || 0);
+            if ($('cashDeposits')) $('cashDeposits').textContent = fmt(d.deposits || 0);
+            if ($('cashWithdrawals')) $('cashWithdrawals').textContent = fmt(d.withdrawals || 0);
+            if ($('cashCurrent')) $('cashCurrent').textContent = fmt(d.current || 0);
+            if ($('headerCash')) $('headerCash').textContent = fmt(d.current || 0);
+        }
+    } catch (e) { console.error('Cash summary error:', e); }
+}
+
+async function loadCashTx() {
+    try {
+        const res = await api('cash?action=transactions');
+        if (res.success && $('cashTable')) {
+            $('cashTable').innerHTML = (res.data || []).map(tx => `
+                <tr>
+                    <td>${new Date(tx.created_at).toLocaleTimeString('ro-RO')}</td>
+                    <td><span class="badge ${tx.type === 'sale' ? 'badge-success' : tx.type === 'deposit' ? 'badge-info' : 'badge-danger'}">${tx.type}</span></td>
+                    <td>${tx.description || '-'}</td>
+                    <td class="${parseFloat(tx.amount) >= 0 ? 'text-success' : 'text-danger'}">${parseFloat(tx.amount) >= 0 ? '+' : ''}${fmt(tx.amount)}</td>
+                    <td>${fmt(tx.balance)}</td>
+                    <td>${tx.user_name || '-'}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="6" class="text-center text-muted">Nicio tranzacție</td></tr>';
+        }
+    } catch (e) { console.error('Cash transactions error:', e); }
+}
+
+function openCashOp(type) {
+    $('cashOpType').value = type;
+    $('cashOpTitle').textContent = type === 'deposit' ? '💵 Depunere Numerar' : '💸 Retragere Numerar';
+    $('cashOpAmount').value = '';
+    $('cashOpDesc').value = '';
+    $('cashOpBtn').textContent = type === 'deposit' ? '💵 Depune' : '💸 Retrage';
+    $('cashOpBtn').className = `btn ${type === 'deposit' ? 'btn-success' : 'btn-danger'}`;
+    openModal('cashOpModal');
+}
+
+$('cashOpForm').onsubmit = async e => {
+    e.preventDefault();
+    const type = $('cashOpType').value;
+    const amount = parseFloat($('cashOpAmount').value);
+    const desc = $('cashOpDesc').value;
+    
+    if (!amount || amount <= 0) {
+        toast('Introduceți o sumă validă!', 'error');
+        return;
+    }
+    
+    closeModal('cashOpModal');
+    loading(true);
+    
+    try {
+        const res = await api('cash?action=' + type, {
+            method: 'POST',
+            body: JSON.stringify({ amount, description: desc })
+        });
+        
+        if (res.success) {
+            toast(type === 'deposit' ? 'Depunere înregistrată!' : 'Retragere înregistrată!');
+            await loadCashSummary();
+            await loadCashTx();
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    
+    loading(false);
+};
+async function genXReport() {
+    loading(true);
+    try {
+        // 1. Generează raportul în aplicație
+        const res = await api('reports?action=x-report');
+        if (res.success) {
+            const d = res.data;
+            $('repModalTitle').textContent = '📋 Raport X';
+            $('repModalBody').innerHTML = `
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <div class="receipt-title">RAPORT X</div>
+                        <div>${d.date} ${d.time}</div>
+                    </div>
+                    <div class="receipt-row"><span>Tranzacții:</span><span>${d.sales?.transactions || 0}</span></div>
+                    <div class="receipt-row"><span>Total:</span><span>${fmt(d.sales?.total || 0)} RON</span></div>
+                    <div class="receipt-row"><span>Numerar:</span><span>${fmt(d.sales?.cash || 0)} RON</span></div>
+                    <div class="receipt-row"><span>Card:</span><span>${fmt(d.sales?.card || 0)} RON</span></div>
+                </div>
+            `;
+            openModal('repModal');
+            
+            // 2. Trimite la casa de marcat
+            const crSettings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+            if (crSettings.enabled) {
+                try {
+                    await sendCashRegisterCommand('report_x');
+                    toast('Raport X trimis și la casa de marcat!');
+                } catch (crError) {
+                    toast('Raport X generat, dar eroare casă de marcat: ' + crError.message, 'warning');
+                }
+            }
+        }
+    } catch (e) { 
+        toast(e.message, 'error'); 
+    }
+    loading(false);
+}
+
+async function genZReport() {
+    showConfirm('📊 Raport Z', 'Sigur doriți să închideți ziua? Aceasta va trimite și Raport Z la casa de marcat.', async () => {
+        loading(true);
+        try {
+            // 1. Generează raportul în aplicație
+            const res = await api('reports?action=z-report', { method: 'POST' });
+            if (res.success) {
+                const r = res.data.report;
+                $('repModalTitle').textContent = '📊 Raport Z';
+                $('repModalBody').innerHTML = `
+                    <div class="receipt">
+                        <div class="receipt-header"><div class="receipt-title">RAPORT Z - ÎNCHIDERE</div></div>
+                        <div class="receipt-row receipt-total"><span>TOTAL:</span><span>${fmt(r.total_sales)} RON</span></div>
+                        <div class="alert alert-success text-center">✅ ZIUA A FOST ÎNCHISĂ</div>
+                    </div>
+                `;
+                openModal('repModal');
+                await loadCashSummary();
+                
+                // 2. Trimite la casa de marcat
+                const crSettings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+                if (crSettings.enabled) {
+                    try {
+                        await sendCashRegisterCommand('report_z');
+                        toast('Raport Z trimis și la casa de marcat!');
+                    } catch (crError) {
+                        toast('Raport Z generat, dar eroare casă de marcat: ' + crError.message, 'warning');
+                    }
+                } else {
+                    toast('Raport Z generat!');
+                }
+            }
+        } catch (e) { toast(e.message, 'error'); }
+        loading(false);
+    });
+}
+
+// Funcție helper pentru comenzi casă de marcat
+async function sendCashRegisterCommand(command) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.port) {
+        throw new Error('Casa de marcat nu este configurată');
+    }
+    
+    if (settings.driver === 'fisco') {
+        const cmdMap = {
+            'report_x': 'Z^X',
+            'report_z': 'Z^Z'
+        };
+        
+        const response = await fetch(`${settings.port}/api/v1/print`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                syntax: 'simplu',
+                version: '1.0',
+                commands: [cmdMap[command]]
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.ok) {
+            throw new Error(result.error?.message || 'Eroare casă de marcat');
+        }
+        return result;
+        
+    } else if (settings.driver === 'datecs') {
+        const endpoint = command === 'report_x' ? '/fiscal/report/x' : '/fiscal/report/z';
+        const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        return result;
+        
+    } else if (settings.driver === 'tremol') {
+        const endpoint = command === 'report_x' ? '/api/report/x' : '/api/report/z';
+        const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+        return await response.json();
+    }
+    
+    throw new Error('Driver necunoscut');
+}
+
+
+
+// ================================================
+// INVENTORY (Admin only adjust)
+// ================================================
+async function loadInventory() {
+    if (categories.length === 0) await loadCategories();
+    try {
+        const res = await api('inventory?action=list&status=' + invFilter);
+        if (res.success) {
+            products = res.data || [];
+            await renderInventory();
+        }
+    } catch (e) { 
+        await loadProducts();
+        await renderInventory();
+    }
+}
+
+	async function renderInventory() {
+    if (!$('invTable')) return;
+    
+    const isAdmin = user && user.role === 'admin';
+    
+    // Calculează contoarele pentru carduri
+    const allCount = products.length;
+    const okCount = products.filter(p => p.stock > (p.min_stock || 5)).length;
+    const lowCount = products.filter(p => p.stock > 0 && p.stock <= (p.min_stock || 5)).length;
+    const outCount = products.filter(p => p.stock <= 0).length;
+    const totalValue = products.reduce((sum, p) => sum + (parseFloat(p.stock) || 0) * (parseFloat(p.price) || 0), 0);
+    
+    // Actualizează cardurile de statistici
+    if ($('invTotal')) $('invTotal').textContent = allCount;
+    if ($('invOk')) $('invOk').textContent = okCount;
+    if ($('invLow')) $('invLow').textContent = lowCount;
+    if ($('invOut')) $('invOut').textContent = outCount;
+    if ($('invValue')) $('invValue').textContent = fmt(totalValue) + ' RON';
+    
+    // Actualizează contoarele din filtre
+    if ($('fAll')) $('fAll').textContent = allCount;
+    if ($('fOk')) $('fOk').textContent = okCount;
+    if ($('fLow')) $('fLow').textContent = lowCount;
+    if ($('fCrit')) $('fCrit').textContent = products.filter(p => p.stock > 0 && p.stock <= Math.floor((p.min_stock || 5) / 2)).length;
+    if ($('fOut')) $('fOut').textContent = outCount;
+    
+    // Filtrează produsele
+    let list = products;
+    if (invFilter === 'ok') list = products.filter(p => p.stock > (p.min_stock || 5));
+    if (invFilter === 'low') list = products.filter(p => p.stock > 0 && p.stock <= (p.min_stock || 5));
+    if (invFilter === 'critical') list = products.filter(p => p.stock > 0 && p.stock <= Math.floor((p.min_stock || 5) / 2));
+    if (invFilter === 'out') list = products.filter(p => p.stock <= 0);
+    
+    // Filtrează după categorie dacă e selectată
+    const catFilter = $('invCatFilter')?.value;
+    if (catFilter) {
+        list = list.filter(p => p.category_id == catFilter);
+    }
+    
+    // Pentru produsele complexe, calculează costul din rețetă
+    const recipeCosts = {};
+    if (isAdmin) {
+        const complexProducts = list.filter(p => p.product_type === 'complex');
+        for (const p of complexProducts) {
+            recipeCosts[p.id] = await calculateRecipeCost(p.id);
+        }
+    }
+    
+  $('invTable').innerHTML = list.map(p => {
+    const cat = categories.find(c => c.id == p.category_id);
+    const icon = getIcon(p.icon) || (cat ? cat.icon : '📦');
+    const status = p.stock <= 0 ? 'out' : p.stock <= Math.floor((p.min_stock || 5) / 2) ? 'critical' : p.stock <= (p.min_stock || 5) ? 'low' : 'ok';
+    const statusText = status === 'ok' ? 'OK' : status === 'low' ? 'Scăzut' : status === 'critical' ? 'Critic' : 'Epuizat';
+    const badgeClass = status === 'ok' ? 'badge-success' : status === 'low' ? 'badge-warning' : 'badge-danger';
+    
+    // Calculează valorile
+    const price = parseFloat(p.price) || 0;
+    const cost = p.product_type === 'complex' ? (recipeCosts[p.id] || 0) : (parseFloat(p.cost) || 0);
+    const stock = parseFloat(p.stock) || 0;
+    
+    // Profit per unitate
+    const profit = price - cost;
+    const profitPercent = cost > 0 ? ((profit / cost) * 100).toFixed(1) : (price > 0 ? '∞' : '0');
+    const profitBadge = profit > 0 ? 'badge-success' : profit < 0 ? 'badge-danger' : 'badge-warning';
+    
+    // Valoare totală la achiziție și vânzare
+    const valueCost = stock * cost;
+    const valueSale = stock * price;
+    
+    const costSource = p.product_type === 'complex' ? '📋' : '📦';
+    
+    const adminColumns = isAdmin ? `
+        <td>${fmt(cost)} RON <small>${costSource}</small></td>
+        <td>
+            <span class="badge ${profitBadge}">${profitPercent}%</span>
+            <small>(${fmt(profit)})</small>
+        </td>
+        <td><span style="color: #e67e22; font-weight: 600;">${fmt(valueCost)} RON</span></td>
+    ` : '';
+    
+    const actionButton = isAdmin 
+        ? `<button class="btn btn-secondary btn-sm" onclick="openStock(${p.id})">📦 Ajustare</button>`
+        : '<span class="text-muted">-</span>';
+    
+    return `
+        <tr>
+            <td><strong>${icon} ${p.name}</strong> ${p.product_type === 'complex' ? '<span class="badge-complex">🍹</span>' : ''}</td>
+            <td>${cat?.name || '-'}</td>
+            <td><span class="badge ${badgeClass}">${p.stock}</span></td>
+            <td><span class="badge ${badgeClass}">${statusText}</span></td>
+            <td>${fmt(price)} RON</td>
+            ${adminColumns}
+            <td><span style="color: #27ae60; font-weight: 600;">${fmt(valueSale)} RON</span></td>
+            <td>${actionButton}</td>
+        </tr>
+    `;
+}).join('') || `<tr><td colspan="${isAdmin ? 10 : 7}" class="text-center text-muted">Niciun produs</td></tr>`;
+
+}
+
+
+
+function openStock(id) {
+    if (!user || user.role !== 'admin') {
+        toast('⛔ Doar administratorii pot ajusta stocul!', 'error');
+        return;
+    }
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    $('stockProdId').value = id;
+    $('stockInfo').innerHTML = `<strong>${p.name}</strong><br>Stoc actual: <strong>${p.stock}</strong>`;
+    $('stockQty').value = p.stock;
+    openModal('stockModal');
+}
+
+$('stockForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    try {
+        const res = await api('inventory?action=adjust', {
+            method: 'POST',
+            body: JSON.stringify({
+                product_id: $('stockProdId').value,
+                type: $('stockType').value,
+                quantity: parseInt($('stockQty').value),
+                reason: $('stockReason').value
+            })
+        });
+        if (res.success) {
+            closeModal('stockModal');
+            toast('Stoc actualizat!');
+            await loadProducts();
+            await loadInventory();
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+};
+
+function exportInventory() { window.open(`${API}/inventory?action=export&token=${token}`, '_blank'); }
+async function printInventory() { toast('Funcție în dezvoltare', 'info'); }
+
+// ================================================
+// REPORTS
+// ================================================
+async function loadUserFilter() {
+    if (user.role !== 'admin') return;
+    try {
+        const res = await api('users');
+        if (res.success && $('repUserFilter')) {
+            $('repUserFilter').innerHTML = '<option value="all">👥 Toți</option>' + 
+                (res.data || []).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        }
+    } catch (e) {}
+}
+
+async function genSalesReport() {
+    loading(true);
+    try {
+        let url = `reports?action=sales&from=${$('repFrom').value}&to=${$('repTo').value}`;
+        if (user.role === 'admin' && $('repUserFilter')?.value !== 'all') {
+            url += `&user_id=${$('repUserFilter').value}`;
+        }
+        const res = await api(url);
+        if (res.success) {
+            const d = res.data;
+            $('repTotal').textContent = fmt(d.total);
+            $('repCash').textContent = fmt(d.cash);
+            $('repCard').textContent = fmt(d.card);
+            $('repTx').textContent = d.transactions;
+            $('topTable').innerHTML = (d.top_products || []).map(p => `
+                <tr><td>${p.name}</td><td>${p.quantity}</td><td>${fmt(p.revenue)} RON</td></tr>
+            `).join('') || '<tr><td colspan="3" class="text-center text-muted">-</td></tr>';
+			$('userSalesTable').innerHTML = (d.sales_by_user || []).map(u => `
+                <tr><td>${u.user_name}</td><td>${u.transactions}</td><td>${fmt(u.total)} RON</td></tr>
+            `).join('') || '<tr><td colspan="3" class="text-center text-muted">-</td></tr>';
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+}
+
+// ================================================
+// USERS MANAGEMENT
+// ================================================
+async function loadUsers() {
+    try {
+        const res = await api('users');
+        if (res.success && $('usersTable')) {
+            const users_list = res.data || [];
+            $('usersTable').innerHTML = users_list.map(u => `
+                <tr>
+                    <td><strong>${u.name}</strong></td>
+                    <td>
+                        <span class="password-hidden" id="pass-${u.id}">••••••••</span>
+                        <span class="password-visible" id="passText-${u.id}" style="display:none;">${u.password || ''}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="togglePassword(${u.id})" style="padding: 2px 8px; margin-left: 8px;">
+                            <span id="eyeIcon-${u.id}">👁️</span>
+                        </button>
+                    </td>
+                    <td><span class="badge ${u.role === 'admin' ? 'badge-danger' : 'badge-success'}">${u.role === 'admin' ? 'Admin' : 'Operator'}</span></td>
+                    <td>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-secondary btn-sm" onclick="openUser(${u.id})">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" ${u.role === 'admin' ? 'disabled' : ''}>🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="text-center text-muted">Niciun utilizator</td></tr>';
+        }
+    } catch (e) {
+        console.error('Error loading users:', e);
+    }
+}
+
+
+function openUserModal() { openUser(null); }
+
+async function openUser(id) {
+    let u = null;
+    if (id) {
+        try {
+            const res = await api(`users?id=${id}`);
+            if (res.success) u = res.data;
+        } catch (e) {}
+    }
+    $('userModalTitle').textContent = u ? '✏️ Editare' : '➕ Nou';
+    $('visibleUserId').value = u?.id || '';
+    $('userNameInput').value = u?.name || '';
+    $('userPassInput').value = u?.password || '';
+    $('userRoleInput').value = u?.role || 'operator';
+    $('userActiveInput').value = u?.active !== false ? 'true' : 'false';
+    $('userActiveGroup').style.display = u ? 'block' : 'none';
+    openModal('userModal');
+}
+
+$('userForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    try {
+        const id = $('visibleUserId').value;
+        const res = await api(`users?action=${id ? 'update' : 'create'}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                id: id || undefined,
+                name: $('userNameInput').value,
+                password: $('userPassInput').value,
+                role: $('userRoleInput').value,
+                active: $('userActiveInput').value === 'true'
+            })
+        });
+        if (res.success) {
+            closeModal('userModal');
+            toast('Salvat!');
+            await loadUsers();
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+};
+
+function deleteUser(id) {
+    showConfirm('🗑️ Șterge', 'Sigur?', async () => {
+        loading(true);
+        try {
+            await api('users?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
+            toast('Șters!');
+            await loadUsers();
+        } catch (e) { toast(e.message, 'error'); }
+        loading(false);
+    });
+}
+
+// ================================================
+// CATEGORIES MANAGEMENT
+// ================================================
+async function loadCategoriesTable() {
+    if (user.role !== 'admin') return;
+    try {
+        const res = await api('categories');
+        if (res.success && $('categoriesTable')) {
+            $('categoriesTable').innerHTML = (res.data || []).map(c => `
+                <tr>
+                    <td style="font-size:24px;">${getIcon(c.icon)}</td>
+                    <td><strong>${c.name}</strong></td>
+                    <td><code>${c.icon}</code></td>
+                    <td>${c.sort_order || 0}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="openCategory(${c.id})">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCategory(${c.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="text-center">-</td></tr>';
+        }
+    } catch (e) {}
+}
+
+async function openCategory(id = null) {
+    let cat = null;
+    if (id) {
+        try {
+            const res = await api(`categories?id=${id}`);
+            if (res.success) cat = res.data;
+        } catch (e) {}
+    }
+    $('catModalTitle').textContent = cat ? '✏️ Editare' : '➕ Nouă';
+    $('catId').value = cat?.id || '';
+    $('catName').value = cat?.name || '';
+    $('catIcon').value = cat?.icon || ':box:';
+    $('catOrder').value = cat?.sort_order || 0;
+    openModal('catModal');
+}
+
+$('catForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    try {
+        const id = $('catId').value;
+        const res = await api(`categories?action=${id ? 'update' : 'create'}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                id: id || undefined,
+                name: $('catName').value,
+                icon: $('catIcon').value,
+                sort_order: parseInt($('catOrder').value) || 0
+            })
+        });
+        if (res.success) {
+            closeModal('catModal');
+            toast('Salvat!');
+            await loadCategories();
+            await loadCategoriesTable();
+        }
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+};
+
+function deleteCategory(id) {
+    showConfirm('🗑️ Șterge', 'Sigur?', async () => {
+        loading(true);
+        try {
+            await api('categories?action=delete', { method: 'POST', body: JSON.stringify({ id }) });
+            toast('Șters!');
+            await loadCategories();
+            await loadCategoriesTable();
+        } catch (e) { toast(e.message, 'error'); }
+        loading(false);
+    });
+}
+
+// ================================================
+// SETTINGS
+// ================================================
+async function loadSettings() {
+    try {
+        const res = await api('settings?action=get');
+        if (res.success) {
+            appSettings = res.data || {};
+            if ($('settingCompanyName')) $('settingCompanyName').value = appSettings.company_name || '';
+            if ($('settingFiscoEnabled')) $('settingFiscoEnabled').checked = appSettings.fisco_enabled === 'true';
+            if ($('settingFiscoUrl')) $('settingFiscoUrl').value = appSettings.fisco_url || 'http://localhost:4444';
+            if ($('settingFiscalPort')) $('settingFiscalPort').value = appSettings.fiscal_port || 'COM1';
+        }
+    } catch (e) {}
+}
+
+async function saveAllSettings() {
+    loading(true);
+    try {
+        const res = await api('settings?action=save', {
+            method: 'POST',
+            body: JSON.stringify({
+                company_name: $('settingCompanyName')?.value || '',
+                company_cui: $('settingCompanyCui')?.value || '',
+                company_address: $('settingCompanyAddress')?.value || '',
+                fisco_enabled: $('settingFiscoEnabled')?.checked ? 'true' : 'false',
+                fisco_url: $('settingFiscoUrl')?.value || '',
+                fiscal_port: $('settingFiscalPort')?.value || 'COM1'
+            })
+        });
+        if (res.success) toast('Setări salvate!');
+    } catch (e) { toast(e.message, 'error'); }
+    loading(false);
+}
+
+async function testFiscoConnection() {
+    const url = $('settingFiscoUrl')?.value || 'http://localhost:4444';
+    loading(true);
+    try {
+        const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({command:'status'}), signal: AbortSignal.timeout(5000) });
+        if (r.ok) toast('✅ Conexiune OK!', 'success');
+        else toast('❌ Eroare conexiune', 'error');
+    } catch (e) { toast('❌ Nu se poate conecta: ' + e.message, 'error'); }
+    loading(false);
+}
+
+async function printTestReceipt() {
+    const url = $('settingFiscoUrl')?.value || 'http://localhost:4444';
+    if (!$('settingFiscoEnabled')?.checked) { toast('Activează imprimarea fiscală!', 'warning'); return; }
+    loading(true);
+    try {
+        const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({command:'printNonFiscal',lines:['=== BON TEST ===','Organica POS','Data: '+new Date().toLocaleString('ro-RO'),'================']}), signal: AbortSignal.timeout(15000) });
+        if (r.ok) toast('✅ Bon trimis!', 'success');
+        else toast('❌ Eroare', 'error');
+    } catch (e) { toast('❌ Eroare: ' + e.message, 'error'); }
+    loading(false);
+}
+
+function openCashDrawer() { toast('Funcție în dezvoltare', 'info'); }
+
+// ================================================
+// CONFIRM DIALOG
+// ================================================
+function showConfirm(title, msg, cb) {
+    $('confirmTitle').textContent = title;
+    $('confirmMsg').textContent = msg;
+    confirmCb = cb;
+    openModal('confirmModal');
+}
+
+function execConfirm() {
+    closeModal('confirmModal');
+    if (confirmCb) { confirmCb(); confirmCb = null; }
+}
+
+// ================================================
+// PRINT
+// ================================================
+function printModalContent() {
+    const content = $('repModalBody').innerHTML;
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Raport</title></head><body>${content}</body></html>`);
+    w.document.close();
+    w.print();
+}
+
+	// ================================================
+// INGREDIENTS
+// ================================================
+let ingredients = [];
+
+async function loadIngredients() {
+    try {
+        const res = await api('ingredients');
+        if (res.success) {
+            ingredients = res.data || [];
+        }
+    } catch (e) {
+        console.error('Error loading ingredients:', e);
+    }
+}
+
+async function loadIngredientsTable() {
+    await loadIngredients();
+    
+    const tableBody = $('ingredientsTable');
+    if (!tableBody) return;
+    
+    if (ingredients.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Niciun ingredient. Adaugă ingrediente pentru a crea rețete.</td></tr>';
+        return;
+    }
+    
+    tableBody.innerHTML = ingredients.map(ing => {
+        const stockStatus = parseFloat(ing.stock) <= parseFloat(ing.min_stock) ? 'badge-danger' : 'badge-success';
+        const stockText = parseFloat(ing.stock) <= parseFloat(ing.min_stock) ? 'Stoc scăzut' : 'OK';
+        
+        return `
+            <tr>
+                <td><strong>${ing.name}</strong></td>
+                <td>${ing.unit}</td>
+                <td>
+                    <span class="badge ${stockStatus}">${parseFloat(ing.stock).toFixed(2)} ${ing.unit}</span>
+                </td>
+                <td>${parseFloat(ing.min_stock).toFixed(2)} ${ing.unit}</td>
+                <td>${parseFloat(ing.cost_per_unit).toFixed(4)} RON</td>
+                <td>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-success btn-sm" onclick="openSupply(${ing.id})" title="Aprovizionare">📦</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openIngredient(${ing.id})" title="Editează">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteIngredient(${ing.id})" title="Șterge">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // Verifică stoc scăzut
+    checkLowStock();
+}
+
+function checkLowStock() {
+    const lowStock = ingredients.filter(i => parseFloat(i.stock) <= parseFloat(i.min_stock));
+    const alertDiv = $('lowStockAlert');
+    
+    if (lowStock.length > 0 && alertDiv) {
+        $('lowStockList').innerHTML = lowStock.map(i => `<strong>${i.name}</strong> (${parseFloat(i.stock).toFixed(2)} ${i.unit})`).join(', ');
+        alertDiv.style.display = 'block';
+    } else if (alertDiv) {
+        alertDiv.style.display = 'none';
+    }
+}
+
+function openIngredient(id = null) {
+    const ing = id ? ingredients.find(x => x.id === id) : null;
+    
+    $('ingredientModalTitle').textContent = ing ? '✏️ Editare Ingredient' : '➕ Ingredient Nou';
+    $('ingId').value = ing?.id || '';
+    $('ingName').value = ing?.name || '';
+    $('ingUnit').value = ing?.unit || 'ml';
+    $('ingStock').value = ing?.stock || 0;
+    $('ingMinStock').value = ing?.min_stock || 0;
+    $('ingCost').value = ing?.cost_per_unit || 0;
+    
+    openModal('ingredientModal');
+}
+
+$('ingredientForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    
+    try {
+        const id = $('ingId').value;
+        const res = await api(`ingredients?action=${id ? 'update' : 'create'}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                id: id || undefined,
+                name: $('ingName').value,
+                unit: $('ingUnit').value,
+                stock: parseFloat($('ingStock').value),
+                min_stock: parseFloat($('ingMinStock').value),
+                cost_per_unit: parseFloat($('ingCost').value)
+            })
+        });
+        
+        if (res.success) {
+            closeModal('ingredientModal');
+            toast(id ? 'Ingredient actualizat!' : 'Ingredient adăugat!');
+            await loadIngredientsTable();
+        }
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+    
+    loading(false);
+};
+
+function openSupply(id) {
+    const ing = ingredients.find(x => x.id === id);
+    if (!ing) return;
+    
+    $('supplyIngId').value = ing.id;
+    $('supplyIngName').textContent = ing.name;
+    $('supplyCurrentStock').textContent = `${parseFloat(ing.stock).toFixed(2)} ${ing.unit}`;
+    $('supplyQty').value = '';
+    
+    openModal('supplyModal');
+}
+
+$('supplyForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    
+    try {
+        const res = await api('ingredients?action=update_stock', {
+            method: 'POST',
+            body: JSON.stringify({
+                id: parseInt($('supplyIngId').value),
+                quantity: parseFloat($('supplyQty').value)
+            })
+        });
+        
+        if (res.success) {
+            closeModal('supplyModal');
+            toast('Stoc actualizat!');
+            await loadIngredientsTable();
+        }
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+    
+    loading(false);
+};
+
+async function deleteIngredient(id) {
+    const ing = ingredients.find(x => x.id === id);
+    if (!ing) return;
+    
+    showConfirm('🗑️ Șterge Ingredient', `Sigur ștergeți "${ing.name}"? Toate rețetele care îl conțin vor fi afectate.`, async () => {
+        loading(true);
+        try {
+            const res = await api('ingredients?action=delete', {
+                method: 'POST',
+                body: JSON.stringify({ id })
+            });
+            if (res.success) {
+                toast('Ingredient șters!');
+                await loadIngredientsTable();
+            }
+        } catch (e) {
+            toast(e.message, 'error');
+        }
+        loading(false);
+    });
+}
+
+// ================================================
+// RECIPES
+// ================================================
+let currentRecipe = [];
+
+async function openRecipe(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    await loadIngredients();
+    
+    $('recipeProductId').value = productId;
+    $('recipeProductName').textContent = product.name;
+    
+    // Populează dropdown-ul cu ingrediente
+    $('recipeIngredientSelect').innerHTML = '<option value="">-- Selectează ingredient --</option>' +
+        ingredients.map(i => `<option value="${i.id}" data-unit="${i.unit}" data-cost="${i.cost_per_unit}">${i.name} (${i.unit})</option>`).join('');
+    
+    $('recipeIngredientQty').value = '';
+    
+    // Încarcă rețeta existentă
+    try {
+        const res = await api(`recipes?action=get&product_id=${productId}`);
+        if (res.success) {
+            currentRecipe = (res.data || []).map(r => ({
+                ingredient_id: r.ingredient_id,
+                name: r.ingredient.name,
+                quantity: r.quantity,
+                unit: r.ingredient.unit,
+                cost_per_unit: r.ingredient.cost_per_unit
+            }));
+        } else {
+            currentRecipe = [];
+        }
+    } catch (e) {
+        currentRecipe = [];
+    }
+    
+    renderRecipeList();
+    openModal('recipeModal');
+}
+
+function addRecipeIngredient() {
+    const select = $('recipeIngredientSelect');
+    const qtyInput = $('recipeIngredientQty');
+    
+    const ingredientId = parseInt(select.value);
+    const quantity = parseFloat(qtyInput.value);
+    
+    if (!ingredientId) {
+        toast('Selectează un ingredient', 'error');
+        return;
+    }
+    
+    if (!quantity || quantity <= 0) {
+        toast('Introdu o cantitate validă', 'error');
+        return;
+    }
+    
+    // Verifică dacă ingredientul e deja în rețetă
+    if (currentRecipe.find(r => r.ingredient_id === ingredientId)) {
+        toast('Ingredientul e deja în rețetă', 'error');
+        return;
+    }
+    
+    const option = select.options[select.selectedIndex];
+    const ing = ingredients.find(i => i.id === ingredientId);
+    
+    currentRecipe.push({
+        ingredient_id: ingredientId,
+        name: ing.name,
+        quantity: quantity,
+        unit: ing.unit,
+        cost_per_unit: parseFloat(ing.cost_per_unit)
+    });
+    
+    // Reset
+    select.value = '';
+    qtyInput.value = '';
+    
+    renderRecipeList();
+}
+
+function removeRecipeIngredient(ingredientId) {
+    currentRecipe = currentRecipe.filter(r => r.ingredient_id !== ingredientId);
+    renderRecipeList();
+}
+
+function renderRecipeList() {
+    const container = $('recipeList');
+    
+    if (currentRecipe.length === 0) {
+        container.innerHTML = '<div class="recipe-empty">Niciun ingredient în rețetă.<br>Adaugă ingrediente de mai sus.</div>';
+        $('recipeCost').style.display = 'none';
+        return;
+    }
+    
+    let totalCost = 0;
+    
+    container.innerHTML = currentRecipe.map(r => {
+        const itemCost = r.quantity * r.cost_per_unit;
+        totalCost += itemCost;
+        
+        return `
+            <div class="recipe-item">
+                <div class="recipe-item-info">
+                    <span class="recipe-item-name">${r.name}</span>
+                    <span class="recipe-item-qty">${r.quantity} ${r.unit}</span>
+                    <span class="recipe-item-cost">(${itemCost.toFixed(2)} RON)</span>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="removeRecipeIngredient(${r.ingredient_id})">✕</button>
+            </div>
+        `;
+    }).join('');
+    
+    $('recipeTotalCost').textContent = totalCost.toFixed(2);
+    $('recipeCost').style.display = 'block';
+}
+
+async function saveRecipe() {
+    const productId = $('recipeProductId').value;
+    
+    loading(true);
+    
+    try {
+        const res = await api('recipes?action=save', {
+            method: 'POST',
+            body: JSON.stringify({
+                product_id: parseInt(productId),
+                ingredients: currentRecipe.map(r => ({
+                    ingredient_id: r.ingredient_id,
+                    quantity: r.quantity
+                }))
+            })
+        });
+        
+        if (res.success) {
+            closeModal('recipeModal');
+            toast('Rețeta a fost salvată!');
+            await loadProducts();
+            await loadProdTable();
+        }
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+    
+    loading(false);
+}
+
+
+	function setProductType(type) {
+    $('prodType').value = type;
+    $('typeSimple').classList.toggle('active', type === 'simple');
+    $('typeComplex').classList.toggle('active', type === 'complex');
+}
+
+	// Calculează costul unui produs complex din rețetă
+async function calculateRecipeCost(productId) {
+    try {
+        const res = await api(`recipes?action=get&product_id=${productId}`);
+        if (res.success && res.data && res.data.length > 0) {
+            let totalCost = 0;
+            for (const item of res.data) {
+                const ingredientCost = parseFloat(item.ingredient?.cost_per_unit) || 0;
+                const quantity = parseFloat(item.quantity) || 0;
+                totalCost += ingredientCost * quantity;
+            }
+            return totalCost;
+        }
+    } catch (e) {
+        console.error('Eroare calcul cost rețetă:', e);
+    }
+    return 0;
+}
+	
+
+	
+	// ================================================
+// CASH REGISTER CONFIGURATION
+// ================================================
+
+const crModels = {
+    daisy: [
+        { value: 'expert-sx', name: 'Expert SX', driver: 'fisco' },
+        { value: 'expert-sx-kl', name: 'Expert SX KL', driver: 'fisco' },
+        { value: 'fx-100', name: 'FX-100', driver: 'fisco' },
+        { value: 'fx-120', name: 'FX-120', driver: 'fisco' },
+        { value: 'compact-s', name: 'Compact S', driver: 'fisco' },
+        { value: 'compact-m', name: 'Compact M', driver: 'fisco' },
+        { value: 'perfect-s', name: 'Perfect S', driver: 'fisco' },
+        { value: 'perfect-m', name: 'Perfect M', driver: 'fisco' }
+    ],
+    datecs: [
+        { value: 'dp-05', name: 'DP-05', driver: 'datecs' },
+        { value: 'dp-15', name: 'DP-15', driver: 'datecs' },
+        { value: 'dp-25', name: 'DP-25', driver: 'datecs' },
+        { value: 'dp-50', name: 'DP-50', driver: 'datecs' },
+        { value: 'dp-500', name: 'DP-500 Plus', driver: 'datecs' },
+        { value: 'fp-650', name: 'FP-650', driver: 'datecs' },
+        { value: 'fp-700', name: 'FP-700', driver: 'datecs' },
+        { value: 'fp-800', name: 'FP-800', driver: 'datecs' },
+        { value: 'fp-2000', name: 'FP-2000', driver: 'datecs' },
+        { value: 'wp-50', name: 'WP-50 (WiFi)', driver: 'datecs' }
+    ],
+    partner: [
+        { value: '200', name: 'Partner 200', driver: 'fisco' },
+        { value: '300', name: 'Partner 300', driver: 'fisco' },
+        { value: '500', name: 'Partner 500', driver: 'fisco' },
+        { value: '600', name: 'Partner 600', driver: 'fisco' },
+        { value: '700', name: 'Partner 700', driver: 'fisco' },
+        { value: '1000', name: 'Partner 1000', driver: 'fisco' }
+    ],
+    tremol: [
+        { value: 's25', name: 'S25', driver: 'tremol' },
+        { value: 'm25', name: 'M25', driver: 'tremol' },
+        { value: 'fp21', name: 'FP21', driver: 'tremol' },
+        { value: 'fp-kl', name: 'FP-KL', driver: 'tremol' },
+        { value: 's-kl', name: 'S-KL', driver: 'tremol' }
+    ],
+    eltrade: [
+        { value: 'a1', name: 'A1', driver: 'fisco' },
+        { value: 'a3', name: 'A3', driver: 'fisco' },
+        { value: 'a6', name: 'A6', driver: 'fisco' },
+        { value: 'b1', name: 'B1', driver: 'fisco' },
+        { value: 'fp', name: 'FP', driver: 'fisco' }
+    ],
+    activa: [
+        { value: 'magic', name: 'Magic', driver: 'fisco' },
+        { value: 'magic-m', name: 'Magic M', driver: 'fisco' },
+        { value: 'magic-kl', name: 'Magic KL', driver: 'fisco' }
+    ],
+    mercury: [
+        { value: '115f', name: '115F', driver: 'serial' },
+        { value: '130f', name: '130F', driver: 'serial' },
+        { value: '180f', name: '180F', driver: 'serial' },
+        { value: '119f', name: '119F', driver: 'serial' }
+    ],
+    custom: [
+        { value: 'custom', name: 'Configurare manuală', driver: 'fisco' }
+    ]
+};
+
+const defaultPorts = {
+    fisco: 'http://127.0.0.1:4040',
+    datecs: 'http://127.0.0.1:3999',
+    tremol: 'http://127.0.0.1:8080',
+    serial: 'COM3',
+    usb: 'USB'
+};
+
+function updateCRModels() {
+    const brand = $('crBrand').value;
+    const modelSelect = $('crModel');
+    
+    if (!brand) {
+        modelSelect.innerHTML = '<option value="">-- Selectează mai întâi marca --</option>';
+        return;
+    }
+    
+    const models = crModels[brand] || [];
+    modelSelect.innerHTML = models.map(m => 
+        `<option value="${m.value}" data-driver="${m.driver}">${m.name}</option>`
+    ).join('');
+    
+    updateCRDriver();
+}
+
+function updateCRDriver() {
+    const brand = $('crBrand').value;
+    const modelValue = $('crModel').value;
+    const models = crModels[brand] || [];
+    const model = models.find(m => m.value === modelValue);
+    
+    if (model) {
+        $('crDriver').value = model.driver;
+        updateCRPort();
+    }
+}
+
+function updateCRPort() {
+    const driver = $('crDriver').value;
+    $('crPort').value = defaultPorts[driver] || '';
+}
+
+function loadCRSettings() {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (settings.brand) {
+        $('crBrand').value = settings.brand;
+        updateCRModels();
+        if (settings.model) $('crModel').value = settings.model;
+    }
+    
+    if (settings.driver) $('crDriver').value = settings.driver;
+    if (settings.port) $('crPort').value = settings.port;
+    
+    $('crEnabled').checked = settings.enabled || false;
+    $('crPrintReceipt').checked = settings.printReceipt !== false;
+    if ($('crAutoReportX')) $('crAutoReportX').checked = settings.autoReportX || false;
+}
+
+function saveCRSettings() {
+    const settings = {
+        brand: $('crBrand').value,
+        model: $('crModel').value,
+        driver: $('crDriver').value,
+        port: $('crPort').value,
+        enabled: $('crEnabled').checked,
+        printReceipt: $('crPrintReceipt').checked,
+        autoReportX: $('crAutoReportX')?.checked || false
+    };
+    
+    localStorage.setItem('crSettings', JSON.stringify(settings));
+    showCRStatus('success', '✅ Setările au fost salvate!');
+    toast('Setări casă de marcat salvate!');
+}
+
+function showCRStatus(type, message) {
+    const statusDiv = $('crStatus');
+    if (!statusDiv) return;
+    
+    statusDiv.className = 'cr-status ' + type;
+    statusDiv.innerHTML = message;
+    statusDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+    }
+}
+
+async function testCashRegister() {
+    const driver = $('crDriver').value;
+    const port = $('crPort').value;
+    
+    if (!port) {
+        showCRStatus('error', '❌ Introdu adresa/portul casei de marcat');
+        return;
+    }
+    
+    showCRStatus('info', '⏳ Se testează conexiunea...');
+    
+    try {
+        let response;
+        
+        if (driver === 'fisco') {
+            response = await fetch(`${port}/api/v1/status`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+        } else if (driver === 'datecs') {
+            response = await fetch(`${port}/status`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+        } else if (driver === 'tremol') {
+            response = await fetch(`${port}/api/status`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+        } else {
+            showCRStatus('error', '❌ Pentru Serial/USB, testarea necesită aplicația desktop.');
+            return;
+        }
+        
+        if (response.ok) {
+            showCRStatus('success', '✅ <strong>Conexiune reușită!</strong> Casa de marcat este conectată.');
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+    } catch (e) {
+        if (e.name === 'AbortError' || e.message.includes('timeout')) {
+            showCRStatus('error', `❌ <strong>Timeout!</strong> Casa de marcat nu răspunde la ${port}`);
+        } else {
+            showCRStatus('error', `❌ <strong>Eroare conexiune:</strong> ${e.message}<br><small>Verifică că driver-ul este pornit și adresa este corectă.</small>`);
+        }
+    }
+}
+
+// Funcție helper pentru comenzi casă de marcat
+async function sendCashRegisterCommand(command) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.port) {
+        toast('Casa de marcat nu este configurată sau activată', 'error');
+        return;
+    }
+    
+    loading(true);
+    
+    try {
+        if (settings.driver === 'fisco') {
+            const cmdMap = {
+                'report_x': 'Z^X',
+                'report_z': 'Z^Z'
+            };
+            
+            const response = await fetch(`${settings.port}/api/v1/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    syntax: 'simplu',
+                    version: '1.0',
+                    commands: [cmdMap[command]]
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(result.error?.message || 'Eroare casă de marcat');
+            }
+            toast(command === 'report_x' ? 'Raport X trimis!' : 'Raport Z trimis!');
+            
+        } else if (settings.driver === 'datecs') {
+            const endpoint = command === 'report_x' ? '/fiscal/report/x' : '/fiscal/report/z';
+            const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+            toast(command === 'report_x' ? 'Raport X trimis!' : 'Raport Z trimis!');
+            
+        } else if (settings.driver === 'tremol') {
+            const endpoint = command === 'report_x' ? '/api/report/x' : '/api/report/z';
+            await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+            toast(command === 'report_x' ? 'Raport X trimis!' : 'Raport Z trimis!');
+        }
+    } catch (e) {
+        toast('Eroare: ' + e.message, 'error');
+    }
+    
+    loading(false);
+}
+
+// Funcție pentru printare bon fiscal
+async function printFiscalReceipt(saleData) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.printReceipt) {
+        return { success: true, skipped: true };
+    }
+    
+    const driver = settings.driver;
+    const port = settings.port;
+    
+    if (driver === 'fisco') {
+        const commands = saleData.items.map(item => {
+            const price = Math.round(item.price * 100);
+            const qty = Math.round(item.quantity * 1000);
+            return `S^${item.name.substring(0, 30)}^${price}^${qty}^buc^2^1`;
+        });
+        
+        const totalCents = Math.round(saleData.total * 100);
+        const paymentType = saleData.payment_method === 'card' ? '2' : '1';
+        commands.push(`P^${paymentType}^${totalCents}`);
+        
+        const response = await fetch(`${port}/api/v1/print`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                syntax: 'simplu',
+                version: '1.0',
+                commands
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.ok) {
+            throw new Error(result.error?.message || 'Eroare printare bon');
+        }
+        return { success: true, data: result };
+        
+    } else if (driver === 'datecs') {
+        const items = saleData.items.map(item => ({
+            name: item.name.substring(0, 30),
+            price: item.price,
+            quantity: item.quantity,
+            taxGroup: 'B'
+        }));
+        
+        const response = await fetch(`${port}/fiscal/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items,
+                payments: [{
+                    type: saleData.payment_method === 'card' ? 'card' : 'cash',
+                    amount: saleData.total
+                }]
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        return { success: true, data: result };
+        
+    } else if (driver === 'tremol') {
+        const response = await fetch(`${port}/api/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: saleData.items.map(item => ({
+                    text: item.name,
+                    price: item.price,
+                    qty: item.quantity,
+                    taxCode: 2
+                })),
+                payment: {
+                    type: saleData.payment_method === 'card' ? 1 : 0,
+                    amount: saleData.total
+                }
+            })
+        });
+        
+        const result = await response.json();
+        return { success: true, data: result };
+    }
+    
+    throw new Error('Driver necunoscut');
+}
+
+	
+// ================================================
+// INIT
+// ================================================
+loadTheme();
+checkAuth();
+</script>
+
+	
+
+</body>
+</html>
