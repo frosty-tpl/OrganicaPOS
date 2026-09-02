@@ -2210,15 +2210,6 @@ async function setupLocalAdmin() {
     }
 }
 
-// Actualizează UI-ul la încărcare
-function updateDbTypeButtons() {
-    if ($('btnDbSupabase')) {
-        $('btnDbSupabase').className = dbType === 'supabase' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
-    }
-    if ($('btnDbLocal')) {
-        $('btnDbLocal').className = dbType === 'local' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
-    }
-}
 
 // ================================================
 // DATABASE ABSTRACTION LAYER
@@ -2372,33 +2363,7 @@ const localDbOps = {
         });
     }
 };
-// Creează utilizatorul admin implicit pentru baza de date locală
-async function setupLocalAdmin() {
-    if (dbType !== 'local') return;
-    
-    await initLocalDb();
-    
-    const users = await localDbOps.getAll('users');
-    
-    // Dacă nu există utilizatori, creează admin-ul implicit
-    if (users.length === 0) {
-        await localDbOps.insert('users', {
-            name: 'Admin',
-            password: 'admin',
-            role: 'admin',
-            active: true
-        });
-        
-        await localDbOps.insert('users', {
-            name: 'Operator',
-            password: '1234',
-            role: 'operator',
-            active: true
-        });
-        
-        console.log('✅ Utilizatori impliciți creați pentru baza de date locală');
-    }
-}
+
 
 // API wrapper care funcționează cu ambele tipuri de baze de date
 async function dbApi(endpoint, options = {}) {
@@ -2958,52 +2923,7 @@ function updateDbTypeButtons() {
     }
 }
 
-// Inițializare IndexedDB pentru stocare locală
-async function initLocalDb() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-            localDb = request.result;
-            resolve(localDb);
-        };
-        
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            
-            if (!db.objectStoreNames.contains('products')) {
-                const products = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
-                products.createIndex('category_id', 'category_id');
-            }
-            if (!db.objectStoreNames.contains('categories')) {
-                db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains('ingredients')) {
-                db.createObjectStore('ingredients', { keyPath: 'id', autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains('recipes')) {
-                const recipes = db.createObjectStore('recipes', { keyPath: 'id', autoIncrement: true });
-                recipes.createIndex('product_id', 'product_id');
-            }
-            if (!db.objectStoreNames.contains('sales')) {
-                const sales = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
-                sales.createIndex('created_at', 'created_at');
-            }
-            if (!db.objectStoreNames.contains('sale_items')) {
-                const saleItems = db.createObjectStore('sale_items', { keyPath: 'id', autoIncrement: true });
-                saleItems.createIndex('sale_id', 'sale_id');
-            }
-            if (!db.objectStoreNames.contains('users')) {
-                db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains('cash_operations')) {
-                const cash = db.createObjectStore('cash_operations', { keyPath: 'id', autoIncrement: true });
-                cash.createIndex('created_at', 'created_at');
-            }
-        };
-    });
-}
+
 
 // Operații CRUD pentru baza de date locală
 const localDbOps = {
