@@ -1390,7 +1390,22 @@
 
             <!-- Settings Tab -->
             <!-- Settings Tab -->
-			<!-- DATABASE SETTINGS -->
+	
+
+        
+        <div class="form-divider"></div>
+        
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="saveDbSettings()">💾 Salvează Configurația</button>
+            <button type="button" class="btn btn-secondary" onclick="testDbConnection()">🔌 Testează Conexiunea</button>
+        </div>
+        
+        <div id="dbStatus" class="mt-3" style="display:none;"></div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-settings">
+    		<!-- DATABASE SETTINGS -->
 <div class="card mb-4">
     <div class="card-header">
         <h3>💾 Configurare Bază de Date</h3>
@@ -1438,21 +1453,6 @@
         <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display:none;" onchange="handleExcelImport(event)">
     </div>
 </div>
-
-        
-        <div class="form-divider"></div>
-        
-        <div class="form-actions">
-            <button type="button" class="btn btn-primary" onclick="saveDbSettings()">💾 Salvează Configurația</button>
-            <button type="button" class="btn btn-secondary" onclick="testDbConnection()">🔌 Testează Conexiunea</button>
-        </div>
-        
-        <div id="dbStatus" class="mt-3" style="display:none;"></div>
-    </div>
-</div>
-
-<div class="tab-content" id="tab-settings">
-    
     <!-- Users Management (Admin Only) -->
     <div class="card mb-4 admin-only">
         <div class="card-header">
