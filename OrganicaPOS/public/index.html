@@ -2295,6 +2295,33 @@ const localDbOps = {
         });
     }
 };
+// Creează utilizatorul admin implicit pentru baza de date locală
+async function setupLocalAdmin() {
+    if (dbType !== 'local') return;
+    
+    await initLocalDb();
+    
+    const users = await localDbOps.getAll('users');
+    
+    // Dacă nu există utilizatori, creează admin-ul implicit
+    if (users.length === 0) {
+        await localDbOps.insert('users', {
+            name: 'Admin',
+            password: 'admin',
+            role: 'admin',
+            active: true
+        });
+        
+        await localDbOps.insert('users', {
+            name: 'Operator',
+            password: '1234',
+            role: 'operator',
+            active: true
+        });
+        
+        console.log('✅ Utilizatori impliciți creați pentru baza de date locală');
+    }
+}
 
 // API wrapper care funcționează cu ambele tipuri de baze de date
 async function dbApi(endpoint, options = {}) {
@@ -2671,7 +2698,7 @@ function loadDbSettings() {
     if (settings.supabaseKey) $('dbSupabaseKey').value = settings.supabaseKey;
 }
 
-function saveDbSettings() {
+async function saveDbSettings() {
     const settings = {
         type: dbType,
         supabaseUrl: $('dbSupabaseUrl').value,
@@ -2681,8 +2708,19 @@ function saveDbSettings() {
     localStorage.setItem('dbSettings', JSON.stringify(settings));
     localStorage.setItem('dbType', dbType);
     
-    toast('Configurația bazei de date a fost salvată! Reîncarcă pagina pentru a aplica.');
+    // Dacă e local, inițializează baza de date și creează admin-ul
+    if (dbType === 'local') {
+        await initLocalDb();
+        await setupLocalAdmin();
+        toast('Configurație salvată! Utilizatori impliciți: Admin/admin și Operator/1234');
+    } else {
+        toast('Configurația bazei de date a fost salvată!');
+    }
+    
+    // Reîncarcă pagina pentru a aplica schimbările
+    setTimeout(() => location.reload(), 1500);
 }
+
 
 async function testDbConnection() {
     const statusDiv = $('dbStatus');
@@ -2790,12 +2828,16 @@ async function handleImport(event) {
 }
 
 // Inițializează setările la încărcare
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadDbSettings();
+    loadCRSettings();
+    
     if (dbType === 'local') {
-        initLocalDb();
+        await initLocalDb();
+        await setupLocalAdmin();
     }
 });
+
 
 	
 // ================================================
