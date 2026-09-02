@@ -2582,15 +2582,20 @@ async function localApiHandler(endpoint, options = {}) {
         }
         
         // AUTH
-        if (resource === 'auth') {
-            if (action === 'login') {
-                const users = await localDbOps.getAll('users');
-                const user = users.find(u => u.name === body.username && u.password === body.password);
-                if (user) {
-                    return { success: true, data: { token: 'local-token', user } };
-                }
-                throw new Error('Utilizator sau parolă incorectă');
-            }
+	if (resource === 'auth') {
+    	if (action === 'login') {
+        const users = await localDbOps.getAll('users');
+        console.log('Users in local DB:', users);
+        console.log('Trying to login with:', body.username, body.password);
+        const foundUser = users.find(u => u.name === body.username && u.password === body.password);
+        if (foundUser) {
+            // Salvează utilizatorul în localStorage pentru sesiune
+            localStorage.setItem('lastLocalUser', JSON.stringify(foundUser));
+            return { success: true, data: { token: 'local-token-' + Date.now(), user: foundUser } };
+        }
+        throw new Error('Utilizator sau parolă incorectă');
+    }
+
             if (action === 'verify') {
                 // Pentru local, returnăm ultimul user logat
                 const lastUser = JSON.parse(localStorage.getItem('lastLocalUser') || 'null');
