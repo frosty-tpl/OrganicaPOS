@@ -1028,6 +1028,10 @@
 		
 		
     </style>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+	
 </head>
 <body data-theme="light">
 
@@ -1422,15 +1426,19 @@
         </div>
         
         <div id="localConfig" style="display:none;">
-            <div class="alert alert-info">
-                💡 Datele vor fi salvate local în browser. Poți exporta/importa pentru backup.
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="exportLocalData()">📥 Export Date (JSON)</button>
-                <button type="button" class="btn btn-secondary" onclick="importLocalData()">📤 Import Date</button>
-                <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
-            </div>
-        </div>
+    		<div class="alert alert-info">
+        💡 Datele sunt salvate local în browser (IndexedDB). Poți exporta/importa pentru backup.
+           </div>
+    <div class="form-actions" style="flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary" onclick="exportLocalData()">📥 Export JSON</button>
+        <button type="button" class="btn btn-secondary" onclick="importLocalData()">📤 Import JSON</button>
+        <button type="button" class="btn btn-success" onclick="exportToExcel()">📊 Export Excel</button>
+        <button type="button" class="btn btn-success" onclick="importFromExcel()">📊 Import Excel</button>
+        <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
+        <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display:none;" onchange="handleExcelImport(event)">
+    </div>
+</div>
+
         
         <div class="form-divider"></div>
         
@@ -2885,6 +2893,132 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof loadCRSettings === 'function') loadCRSettings();
 });
 
+// ================================================
+// EXCEL EXPORT / IMPORT
+// ================================================
+
+async function exportToExcel() {
+    try {
+        loading(true);
+        
+        // Colectează toate datele
+        const data = {
+            products: await localDbOps.getAll('products'),
+            categories: await localDbOps.getAll('categories'),
+            ingredients: await localDbOps.getAll('ingredients'),
+            recipes: await localDbOps.getAll('recipes'),
+            sales: await localDbOps.getAll('sales'),
+            sale_items: await localDbOps.getAll('sale_items'),
+            users: await localDbOps.getAll('users'),
+            cash_operations: await localDbOps.getAll('cash_operations')
+        };
+        
+        // Creează workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Adaugă fiecare tabel ca sheet separat
+        for (const [tableName, tableData] of Object.entries(data)) {
+            if (tableData && tableData.length > 0) {
+                const ws = XLSX.utils.json_to_sheet(tableData);
+                XLSX.utils.book_append_sheet(wb, ws, tableName);
+            } else {
+                // Creează sheet gol cu header-uri
+                const ws = XLSX.utils.json_to_sheet([]);
+                XLSX.utils.book_append_sheet(wb, ws, tableName);
+            }
+        }
+        
+        // Salvează fișierul
+        const fileName = 'OrganicaPOS-backup-' + new Date().toISOString().split('T')[0] + '.xlsx';
+        XLSX.writeFile(wb, fileName);
+        
+        toast('Export Excel realizat cu succes!');
+        loading(false);
+        
+    } catch (e) {
+        loading(false);
+        toast('Eroare la export Excel: ' + e.message, 'error');
+        console.error('Export Excel error:', e);
+    }
+}
+
+function importFromExcel() {
+    $('importExcelFile').click();
+}
+
+async function handleExcelImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        loading(true);
+        
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data);
+        
+        // Verifică că fișierul are sheet-uri valide
+        const validSheets = ['products', 'categories', 'ingredients', 'recipes', 'sales', 'sale_items', 'users', 'cash_operations'];
+        const foundSheets = wb.SheetNames.filter(name => validSheets.includes(name));
+        
+        if (foundSheets.length === 0) {
+            throw new Error('Fișierul Excel nu conține tabele valide. Sheet-urile trebuie să se numească: ' + validSheets.join(', '));
+        }
+        
+        loading(false);
+        
+        // Confirmă înainte de import
+        showConfirm('📊 Import Excel', 
+            `S-au găsit ${foundSheets.length} tabele: ${foundSheets.join(', ')}.\n\nAtenție! Aceasta va înlocui toate datele existente. Continuați?`, 
+            async () => {
+                loading(true);
+                
+                try {
+                    // Importă fiecare sheet
+                    for (const sheetName of foundSheets) {
+                        const ws = wb.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(ws);
+                        
+                        if (jsonData && jsonData.length > 0) {
+                            // Șterge datele existente
+                            await localDbOps.clear(sheetName);
+                            
+                            // Inserează noile date
+                            for (const row of jsonData) {
+                                // Convertește ID-ul la număr dacă e string
+                                if (row.id) row.id = parseInt(row.id);
+                                
+                                // Elimină ID-ul pentru a lăsa autoIncrement să funcționeze
+                                // sau păstrează-l dacă vrei să menții referințele
+                                await localDbOps.insert(sheetName, row);
+                            }
+                        }
+                    }
+                    
+                    loading(false);
+                    toast(`Import realizat cu succes! ${foundSheets.length} tabele importate.`);
+                    
+                    // Reîncarcă datele
+                    if (typeof loadProducts === 'function') await loadProducts();
+                    if (typeof loadCategories === 'function') await loadCategories();
+                    if (typeof loadIngredients === 'function') await loadIngredients();
+                    
+                } catch (e) {
+                    loading(false);
+                    toast('Eroare la import: ' + e.message, 'error');
+                    console.error('Import error:', e);
+                }
+            }
+        );
+        
+    } catch (e) {
+        loading(false);
+        toast('Eroare la citirea fișierului Excel: ' + e.message, 'error');
+        console.error('Excel read error:', e);
+    }
+    
+    // Reset input
+    event.target.value = '';
+}
 
 
 	
