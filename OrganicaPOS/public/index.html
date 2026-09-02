@@ -2143,6 +2143,72 @@
 
 
 <script>
+	// Inițializare tip bază de date
+let dbType = localStorage.getItem('dbType') || 'supabase';
+
+// Schimbă tipul de bază de date de pe pagina de login
+async function switchDbType(type) {
+    dbType = type;
+    localStorage.setItem('dbType', type);
+    
+    // Actualizează butoanele
+    if ($('btnDbSupabase')) {
+        $('btnDbSupabase').className = type === 'supabase' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+    }
+    if ($('btnDbLocal')) {
+        $('btnDbLocal').className = type === 'local' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+    }
+    
+    // Dacă e local, inițializează și creează utilizatorii
+    if (type === 'local') {
+        await initLocalDb();
+        await setupLocalAdmin();
+        toast('Mod local activat. Login: Admin/admin sau Operator/1234');
+    } else {
+        toast('Mod cloud activat. Folosește credențialele Supabase.');
+    }
+}
+
+// Creează utilizatorul admin implicit pentru baza de date locală
+async function setupLocalAdmin() {
+    if (dbType !== 'local') return;
+    
+    try {
+        await initLocalDb();
+        const users = await localDbOps.getAll('users');
+        
+        if (users.length === 0) {
+            await localDbOps.insert('users', {
+                name: 'Admin',
+                password: 'admin',
+                role: 'admin',
+                active: true
+            });
+            
+            await localDbOps.insert('users', {
+                name: 'Operator',
+                password: '1234',
+                role: 'operator',
+                active: true
+            });
+            
+            console.log('✅ Utilizatori impliciți creați');
+        }
+    } catch (e) {
+        console.error('Eroare setup local:', e);
+    }
+}
+
+// Actualizează UI-ul la încărcare
+function updateDbTypeButtons() {
+    if ($('btnDbSupabase')) {
+        $('btnDbSupabase').className = dbType === 'supabase' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+    }
+    if ($('btnDbLocal')) {
+        $('btnDbLocal').className = dbType === 'local' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+    }
+}
+
 // ================================================
 // DATABASE ABSTRACTION LAYER
 // ================================================
@@ -2829,14 +2895,20 @@ async function handleImport(event) {
 
 // Inițializează setările la încărcare
 document.addEventListener('DOMContentLoaded', async () => {
-    loadDbSettings();
-    loadCRSettings();
+    // Actualizează butoanele de tip DB
+    updateDbTypeButtons();
     
+    // Dacă e local, inițializează
     if (dbType === 'local') {
         await initLocalDb();
         await setupLocalAdmin();
     }
+    
+    // Alte inițializări
+    if (typeof loadDbSettings === 'function') loadDbSettings();
+    if (typeof loadCRSettings === 'function') loadCRSettings();
 });
+
 
 
 	
@@ -2984,6 +3056,15 @@ function showApp() {
     document.body.classList.add('role-' + (user?.role || 'operator'));
 }
 
+	<div class="db-selector mb-4">
+    <label style="color: #ccc; font-size: 12px; margin-bottom: 8px; display: block;">Tip conexiune:</label>
+    <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-sm" id="btnDbSupabase" onclick="switchDbType('supabase')" style="flex:1;">☁️ Cloud</button>
+        <button type="button" class="btn btn-sm" id="btnDbLocal" onclick="switchDbType('local')" style="flex:1;">💻 Local</button>
+    </div>
+</div>
+
+	
 $('loginForm').onsubmit = async e => {
     e.preventDefault();
     loading(true);
