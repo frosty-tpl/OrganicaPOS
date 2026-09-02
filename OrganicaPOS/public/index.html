@@ -979,6 +979,53 @@
     font-weight: 600;
 }
 
+	/* Database Type Toggle */
+.db-type-toggle {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.db-type-btn {
+    flex: 1;
+    padding: 20px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.db-type-btn:hover {
+    border-color: var(--primary);
+}
+
+.db-type-btn.active {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+}
+
+.db-type-btn .icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.db-type-btn strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.db-type-btn small {
+    display: block;
+    opacity: 0.8;
+    font-size: 12px;
+}
+
+		
 		
     </style>
 </head>
@@ -1328,6 +1375,63 @@
 
             <!-- Settings Tab -->
             <!-- Settings Tab -->
+			<!-- DATABASE SETTINGS -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>💾 Configurare Bază de Date</h3>
+    </div>
+    <div class="card-body">
+        <div class="form-group">
+            <label>Tip Stocare Date</label>
+            <div class="db-type-toggle">
+                <div class="db-type-btn active" id="dbTypeSupabase" onclick="setDbType('supabase')">
+                    <span class="icon">☁️</span>
+                    <strong>Supabase (Cloud)</strong>
+                    <small>Date online, sincronizare între dispozitive</small>
+                </div>
+                <div class="db-type-btn" id="dbTypeLocal" onclick="setDbType('local')">
+                    <span class="icon">💻</span>
+                    <strong>Local (Offline)</strong>
+                    <small>Date salvate local, funcționează fără internet</small>
+                </div>
+            </div>
+        </div>
+        
+        <div id="supabaseConfig">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Supabase URL</label>
+                    <input type="text" id="dbSupabaseUrl" placeholder="https://xxxxx.supabase.co">
+                </div>
+                <div class="form-group">
+                    <label>Supabase Anon Key</label>
+                    <input type="text" id="dbSupabaseKey" placeholder="eyJxxxxx">
+                </div>
+            </div>
+        </div>
+        
+        <div id="localConfig" style="display:none;">
+            <div class="alert alert-info">
+                💡 Datele vor fi salvate local în browser. Poți exporta/importa pentru backup.
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="exportLocalData()">📥 Export Date (JSON)</button>
+                <button type="button" class="btn btn-secondary" onclick="importLocalData()">📤 Import Date</button>
+                <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
+            </div>
+        </div>
+        
+        <div class="form-divider"></div>
+        
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="saveDbSettings()">💾 Salvează Configurația</button>
+            <button type="button" class="btn btn-secondary" onclick="testDbConnection()">🔌 Testează Conexiunea</button>
+        </div>
+        
+        <div id="dbStatus" class="mt-3" style="display:none;"></div>
+    </div>
+</div>
+
 <div class="tab-content" id="tab-settings">
     
     <!-- Users Management (Admin Only) -->
@@ -2040,6 +2144,661 @@
 
 <script>
 // ================================================
+// DATABASE ABSTRACTION LAYER
+// ================================================
+
+const DB_NAME = 'OrganicaPOS';
+const DB_VERSION = 1;
+let dbType = localStorage.getItem('dbType') || 'supabase';
+let localDb = null;
+
+// Inițializare IndexedDB pentru stocare locală
+async function initLocalDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            localDb = request.result;
+            resolve(localDb);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Creează store-urile pentru fiecare tabel
+            if (!db.objectStoreNames.contains('products')) {
+                const products = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
+                products.createIndex('category_id', 'category_id');
+                products.createIndex('name', 'name');
+            }
+            
+            if (!db.objectStoreNames.contains('categories')) {
+                db.createObjectStore('categories', { keyPath: 'id', autoIncrement: true });
+            }
+            
+            if (!db.objectStoreNames.contains('ingredients')) {
+                db.createObjectStore('ingredients', { keyPath: 'id', autoIncrement: true });
+            }
+            
+            if (!db.objectStoreNames.contains('recipes')) {
+                const recipes = db.createObjectStore('recipes', { keyPath: 'id', autoIncrement: true });
+                recipes.createIndex('product_id', 'product_id');
+            }
+            
+            if (!db.objectStoreNames.contains('sales')) {
+                const sales = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+                sales.createIndex('created_at', 'created_at');
+            }
+            
+            if (!db.objectStoreNames.contains('sale_items')) {
+                const saleItems = db.createObjectStore('sale_items', { keyPath: 'id', autoIncrement: true });
+                saleItems.createIndex('sale_id', 'sale_id');
+            }
+            
+            if (!db.objectStoreNames.contains('users')) {
+                db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
+            }
+            
+            if (!db.objectStoreNames.contains('cash_operations')) {
+                const cash = db.createObjectStore('cash_operations', { keyPath: 'id', autoIncrement: true });
+                cash.createIndex('created_at', 'created_at');
+            }
+        };
+    });
+}
+
+// Operații CRUD pentru baza de date locală
+const localDbOps = {
+    async getAll(storeName) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async getById(storeName, id) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async getByIndex(storeName, indexName, value) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readonly');
+            const store = transaction.objectStore(storeName);
+            const index = store.index(indexName);
+            const request = index.getAll(value);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async insert(storeName, data) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            
+            // Adaugă timestamp dacă nu există
+            if (!data.created_at) data.created_at = new Date().toISOString();
+            
+            const request = store.add(data);
+            request.onsuccess = () => {
+                data.id = request.result;
+                resolve(data);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async update(storeName, data) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.put(data);
+            request.onsuccess = () => resolve(data);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async delete(storeName, id) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    async clear(storeName) {
+        if (!localDb) await initLocalDb();
+        return new Promise((resolve, reject) => {
+            const transaction = localDb.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.clear();
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+};
+
+// API wrapper care funcționează cu ambele tipuri de baze de date
+async function dbApi(endpoint, options = {}) {
+    // Dacă folosim Supabase, apelăm API-ul normal
+    if (dbType === 'supabase') {
+        return api(endpoint, options);
+    }
+    
+    // Pentru local, procesăm intern
+    return localApiHandler(endpoint, options);
+}
+
+// Handler pentru API local
+async function localApiHandler(endpoint, options = {}) {
+    const [resource, queryString] = endpoint.split('?');
+    const params = new URLSearchParams(queryString || '');
+    const action = params.get('action') || 'list';
+    
+    let body = null;
+    if (options.body) {
+        body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    }
+    
+    try {
+        // PRODUCTS
+        if (resource === 'products') {
+            if (action === 'list') {
+                const data = await localDbOps.getAll('products');
+                return { success: true, data };
+            }
+            if (action === 'create') {
+                const data = await localDbOps.insert('products', body);
+                return { success: true, data };
+            }
+            if (action === 'update') {
+                const data = await localDbOps.update('products', body);
+                return { success: true, data };
+            }
+            if (action === 'delete') {
+                await localDbOps.delete('products', body.id);
+                return { success: true };
+            }
+        }
+        
+        // CATEGORIES
+        if (resource === 'categories') {
+            if (action === 'list') {
+                const data = await localDbOps.getAll('categories');
+                return { success: true, data };
+            }
+            if (action === 'create') {
+                const data = await localDbOps.insert('categories', body);
+                return { success: true, data };
+            }
+            if (action === 'update') {
+                const data = await localDbOps.update('categories', body);
+                return { success: true, data };
+            }
+            if (action === 'delete') {
+                await localDbOps.delete('categories', body.id);
+                return { success: true };
+            }
+        }
+        
+        // INGREDIENTS
+        if (resource === 'ingredients') {
+            if (action === 'list') {
+                const data = await localDbOps.getAll('ingredients');
+                return { success: true, data };
+            }
+            if (action === 'create') {
+                const data = await localDbOps.insert('ingredients', body);
+                return { success: true, data };
+            }
+            if (action === 'update') {
+                const data = await localDbOps.update('ingredients', body);
+                return { success: true, data };
+            }
+            if (action === 'update_stock') {
+                const ingredient = await localDbOps.getById('ingredients', body.id);
+                ingredient.stock = parseFloat(ingredient.stock) + parseFloat(body.quantity);
+                const data = await localDbOps.update('ingredients', ingredient);
+                return { success: true, data };
+            }
+            if (action === 'delete') {
+                await localDbOps.delete('ingredients', body.id);
+                return { success: true };
+            }
+        }
+        
+        // RECIPES
+        if (resource === 'recipes') {
+            if (action === 'get') {
+                const productId = parseInt(params.get('product_id'));
+                const allRecipes = await localDbOps.getAll('recipes');
+                const ingredients = await localDbOps.getAll('ingredients');
+                
+                const data = allRecipes
+                    .filter(r => r.product_id === productId)
+                    .map(r => ({
+                        ...r,
+                        ingredient: ingredients.find(i => i.id === r.ingredient_id)
+                    }));
+                return { success: true, data };
+            }
+            if (action === 'save') {
+                // Șterge rețetele existente pentru acest produs
+                const allRecipes = await localDbOps.getAll('recipes');
+                for (const r of allRecipes.filter(r => r.product_id === body.product_id)) {
+                    await localDbOps.delete('recipes', r.id);
+                }
+                
+                // Inserează noile ingrediente
+                for (const ing of body.ingredients) {
+                    await localDbOps.insert('recipes', {
+                        product_id: body.product_id,
+                        ingredient_id: ing.ingredient_id,
+                        quantity: ing.quantity
+                    });
+                }
+                
+                // Actualizează tipul produsului
+                const product = await localDbOps.getById('products', body.product_id);
+                if (product) {
+                    product.product_type = 'complex';
+                    await localDbOps.update('products', product);
+                }
+                
+                return { success: true };
+            }
+        }
+        
+        // SALES
+        if (resource === 'sales') {
+            if (action === 'create') {
+                // Creează vânzarea
+                const sale = await localDbOps.insert('sales', {
+                    total: body.total,
+                    payment_method: body.payment_method,
+                    cash_received: body.cash_received,
+                    user_id: body.user_id,
+                    user_name: body.user_name,
+                    sale_number: body.sale_number
+                });
+                
+                // Creează itemii
+                for (const item of body.items) {
+                    await localDbOps.insert('sale_items', {
+                        sale_id: sale.id,
+                        product_id: item.product_id,
+                        product_name: item.name,
+                        quantity: item.quantity,
+                        unit_price: item.price,
+                        total: item.price * item.quantity
+                    });
+                    
+                    // Actualizează stocul
+                    const product = await localDbOps.getById('products', item.product_id);
+                    if (product) {
+                        if (product.product_type === 'complex') {
+                            // Scade ingredientele
+                            const recipes = await localDbOps.getByIndex('recipes', 'product_id', item.product_id);
+                            for (const recipe of recipes) {
+                                const ingredient = await localDbOps.getById('ingredients', recipe.ingredient_id);
+                                if (ingredient) {
+                                    ingredient.stock = Math.max(0, parseFloat(ingredient.stock) - (recipe.quantity * item.quantity));
+                                    await localDbOps.update('ingredients', ingredient);
+                                }
+                            }
+                        } else {
+                            product.stock = Math.max(0, product.stock - item.quantity);
+                            await localDbOps.update('products', product);
+                        }
+                    }
+                }
+                
+                return { success: true, data: sale };
+            }
+            if (action === 'list') {
+                const data = await localDbOps.getAll('sales');
+                return { success: true, data: data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) };
+            }
+        }
+        
+        // USERS
+        if (resource === 'users') {
+            if (action === 'list' || !action) {
+                const data = await localDbOps.getAll('users');
+                return { success: true, data };
+            }
+            if (action === 'create') {
+                const data = await localDbOps.insert('users', body);
+                return { success: true, data };
+            }
+            if (action === 'update') {
+                const data = await localDbOps.update('users', body);
+                return { success: true, data };
+            }
+            if (action === 'delete') {
+                await localDbOps.delete('users', body.id);
+                return { success: true };
+            }
+        }
+        
+        // AUTH
+        if (resource === 'auth') {
+            if (action === 'login') {
+                const users = await localDbOps.getAll('users');
+                const user = users.find(u => u.name === body.username && u.password === body.password);
+                if (user) {
+                    return { success: true, data: { token: 'local-token', user } };
+                }
+                throw new Error('Utilizator sau parolă incorectă');
+            }
+            if (action === 'verify') {
+                // Pentru local, returnăm ultimul user logat
+                const lastUser = JSON.parse(localStorage.getItem('lastLocalUser') || 'null');
+                if (lastUser) {
+                    return { success: true, data: { user: lastUser } };
+                }
+                return { success: false };
+            }
+            if (action === 'logout') {
+                localStorage.removeItem('lastLocalUser');
+                return { success: true };
+            }
+        }
+        
+        // CASH
+        if (resource === 'cash') {
+            if (action === 'deposit' || action === 'withdraw') {
+                const data = await localDbOps.insert('cash_operations', {
+                    type: action,
+                    amount: action === 'withdraw' ? -parseFloat(body.amount) : parseFloat(body.amount),
+                    description: body.description || '',
+                    user_id: body.user_id,
+                    user_name: body.user_name
+                });
+                return { success: true, data };
+            }
+            if (action === 'summary') {
+                const today = new Date().toISOString().split('T')[0];
+                const sales = await localDbOps.getAll('sales');
+                const operations = await localDbOps.getAll('cash_operations');
+                
+                const todaySales = sales.filter(s => s.created_at?.startsWith(today));
+                const todayOps = operations.filter(o => o.created_at?.startsWith(today));
+                
+                const cashSales = todaySales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + parseFloat(s.total), 0);
+                const cardSales = todaySales.filter(s => s.payment_method === 'card').reduce((sum, s) => sum + parseFloat(s.total), 0);
+                const deposits = todayOps.filter(o => o.type === 'deposit').reduce((sum, o) => sum + Math.abs(parseFloat(o.amount)), 0);
+                const withdrawals = todayOps.filter(o => o.type === 'withdraw').reduce((sum, o) => sum + Math.abs(parseFloat(o.amount)), 0);
+                
+                return {
+                    success: true,
+                    data: {
+                        cash_sales: cashSales,
+                        card_sales: cardSales,
+                        deposits,
+                        withdrawals,
+                        balance: cashSales + deposits - withdrawals
+                    }
+                };
+            }
+            if (action === 'transactions') {
+                const today = new Date().toISOString().split('T')[0];
+                const operations = await localDbOps.getAll('cash_operations');
+                const data = operations.filter(o => o.created_at?.startsWith(today));
+                return { success: true, data };
+            }
+        }
+        
+        // INVENTORY
+        if (resource === 'inventory') {
+            if (action === 'list') {
+                const data = await localDbOps.getAll('products');
+                return { success: true, data };
+            }
+            if (action === 'adjust') {
+                const product = await localDbOps.getById('products', parseInt(body.product_id));
+                if (product) {
+                    if (body.type === 'set') {
+                        product.stock = parseInt(body.quantity);
+                    } else if (body.type === 'add') {
+                        product.stock += parseInt(body.quantity);
+                    } else if (body.type === 'subtract') {
+                        product.stock = Math.max(0, product.stock - parseInt(body.quantity));
+                    }
+                    await localDbOps.update('products', product);
+                    return { success: true, data: product };
+                }
+            }
+        }
+        
+        // REPORTS
+        if (resource === 'reports') {
+            if (action === 'sales') {
+                const from = params.get('from');
+                const to = params.get('to');
+                
+                let sales = await localDbOps.getAll('sales');
+                let saleItems = await localDbOps.getAll('sale_items');
+                
+                if (from) sales = sales.filter(s => s.created_at >= from + 'T00:00:00');
+                if (to) sales = sales.filter(s => s.created_at <= to + 'T23:59:59');
+                
+                const total = sales.reduce((sum, s) => sum + parseFloat(s.total), 0);
+                const cash = sales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + parseFloat(s.total), 0);
+                const card = sales.filter(s => s.payment_method === 'card').reduce((sum, s) => sum + parseFloat(s.total), 0);
+                
+                // Top produse
+                const productStats = {};
+                for (const sale of sales) {
+                    const items = saleItems.filter(i => i.sale_id === sale.id);
+                    for (const item of items) {
+                        const key = item.product_name;
+                        if (!productStats[key]) {
+                            productStats[key] = { name: key, quantity: 0, revenue: 0 };
+                        }
+                        productStats[key].quantity += item.quantity;
+                        productStats[key].revenue += parseFloat(item.total || 0);
+                    }
+                }
+                
+                // Vânzări pe utilizator
+                const userStats = {};
+                for (const sale of sales) {
+                    const uName = sale.user_name || 'Necunoscut';
+                    if (!userStats[uName]) {
+                        userStats[uName] = { user_name: uName, total: 0, transactions: 0 };
+                    }
+                    userStats[uName].total += parseFloat(sale.total);
+                    userStats[uName].transactions += 1;
+                }
+                
+                return {
+                    success: true,
+                    data: {
+                        total,
+                        cash,
+                        card,
+                        transactions: sales.length,
+                        top_products: Object.values(productStats).sort((a, b) => b.revenue - a.revenue).slice(0, 10),
+                        sales_by_user: Object.values(userStats).sort((a, b) => b.total - a.total)
+                    }
+                };
+            }
+        }
+        
+        return { success: false, error: 'Acțiune necunoscută: ' + endpoint };
+        
+    } catch (e) {
+        console.error('Local DB Error:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+// Setări bază de date
+function setDbType(type) {
+    $('dbTypeSupabase').classList.toggle('active', type === 'supabase');
+    $('dbTypeLocal').classList.toggle('active', type === 'local');
+    $('supabaseConfig').style.display = type === 'supabase' ? 'block' : 'none';
+    $('localConfig').style.display = type === 'local' ? 'block' : 'none';
+    dbType = type;
+}
+
+function loadDbSettings() {
+    const settings = JSON.parse(localStorage.getItem('dbSettings') || '{}');
+    dbType = settings.type || 'supabase';
+    
+    setDbType(dbType);
+    
+    if (settings.supabaseUrl) $('dbSupabaseUrl').value = settings.supabaseUrl;
+    if (settings.supabaseKey) $('dbSupabaseKey').value = settings.supabaseKey;
+}
+
+function saveDbSettings() {
+    const settings = {
+        type: dbType,
+        supabaseUrl: $('dbSupabaseUrl').value,
+        supabaseKey: $('dbSupabaseKey').value
+    };
+    
+    localStorage.setItem('dbSettings', JSON.stringify(settings));
+    localStorage.setItem('dbType', dbType);
+    
+    toast('Configurația bazei de date a fost salvată! Reîncarcă pagina pentru a aplica.');
+}
+
+async function testDbConnection() {
+    const statusDiv = $('dbStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'alert alert-info';
+    statusDiv.innerHTML = '⏳ Se testează conexiunea...';
+    
+    try {
+        if (dbType === 'supabase') {
+            const res = await api('products?action=list');
+            if (res.success) {
+                statusDiv.className = 'alert alert-success';
+                statusDiv.innerHTML = '✅ Conexiune Supabase reușită! ' + (res.data?.length || 0) + ' produse găsite.';
+            } else {
+                throw new Error(res.error);
+            }
+        } else {
+            await initLocalDb();
+            const products = await localDbOps.getAll('products');
+            statusDiv.className = 'alert alert-success';
+            statusDiv.innerHTML = '✅ Baza de date locală funcționează! ' + products.length + ' produse găsite.';
+        }
+    } catch (e) {
+        statusDiv.className = 'alert alert-danger';
+        statusDiv.innerHTML = '❌ Eroare: ' + e.message;
+    }
+}
+
+// Export/Import pentru baza de date locală
+async function exportLocalData() {
+    try {
+        const data = {
+            exportDate: new Date().toISOString(),
+            version: '1.0',
+            products: await localDbOps.getAll('products'),
+            categories: await localDbOps.getAll('categories'),
+            ingredients: await localDbOps.getAll('ingredients'),
+            recipes: await localDbOps.getAll('recipes'),
+            sales: await localDbOps.getAll('sales'),
+            sale_items: await localDbOps.getAll('sale_items'),
+            users: await localDbOps.getAll('users'),
+            cash_operations: await localDbOps.getAll('cash_operations')
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'organica-pos-backup-' + new Date().toISOString().split('T')[0] + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast('Export realizat cu succes!');
+    } catch (e) {
+        toast('Eroare la export: ' + e.message, 'error');
+    }
+}
+
+function importLocalData() {
+    $('importFile').click();
+}
+
+async function handleImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!data.version || !data.products) {
+            throw new Error('Fișier invalid');
+        }
+        
+        // Confirmă înainte de import
+        showConfirm('📤 Import Date', 'Atenție! Aceasta va înlocui toate datele existente. Continuați?', async () => {
+            loading(true);
+            
+            // Șterge datele existente și importă cele noi
+            const stores = ['products', 'categories', 'ingredients', 'recipes', 'sales', 'sale_items', 'users', 'cash_operations'];
+            
+            for (const store of stores) {
+                await localDbOps.clear(store);
+                if (data[store]) {
+                    for (const item of data[store]) {
+                        await localDbOps.insert(store, item);
+                    }
+                }
+            }
+            
+            loading(false);
+            toast('Import realizat cu succes! ' + data.products.length + ' produse importate.');
+            
+            // Reîncarcă datele
+            await loadProducts();
+            await loadCategories();
+        });
+        
+    } catch (e) {
+        toast('Eroare la import: ' + e.message, 'error');
+    }
+    
+    // Reset input
+    event.target.value = '';
+}
+
+// Inițializează setările la încărcare
+document.addEventListener('DOMContentLoaded', () => {
+    loadDbSettings();
+    if (dbType === 'local') {
+        initLocalDb();
+    }
+});
+
+	
+// ================================================
 // CONFIG & STATE
 // ================================================
 const API = '/api';
@@ -2095,6 +2854,12 @@ function openModal(id) { $(id).classList.add('active'); }
 function closeModal(id) { $(id).classList.remove('active'); }
 
 async function api(endpoint, options = {}) {
+    // Dacă folosim baza de date locală, folosește handler-ul local
+    if (dbType === 'local') {
+        return localApiHandler(endpoint, options);
+    }
+    
+    // Supabase - apel API normal
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     
@@ -2116,6 +2881,7 @@ async function api(endpoint, options = {}) {
         throw e;
     }
 }
+
 
 // ================================================
 // THEME
