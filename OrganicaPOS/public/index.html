@@ -1054,10 +1054,23 @@
           <div id="loginError"></div>
 
 <div class="db-selector mb-4">
-    <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip baza de date:</label>
+    <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip bază de date:</label>
     <div style="display: flex; gap: 10px;">
         <button type="button" class="btn btn-primary btn-sm" id="btnDbSupabase" onclick="switchDbType('supabase')" style="flex:1;">☁️ Cloud</button>
         <button type="button" class="btn btn-secondary btn-sm" id="btnDbLocal" onclick="switchDbType('local')" style="flex:1;">💻 Local</button>
+    </div>
+</div>
+
+<div id="localImportSection" style="display:none; margin-bottom: 15px;">
+    <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+        <small style="color: #aaa; display: block; margin-bottom: 8px;">Importă date din Excel sau folosește contul implicit:</small>
+        <button type="button" class="btn btn-success btn-sm" onclick="importFromExcelLogin()" style="margin-bottom: 5px;">
+            📊 Import Excel
+        </button>
+        <input type="file" id="importExcelLoginFile" accept=".xlsx,.xls" style="display:none;" onchange="handleExcelImportLogin(event)">
+        <div style="color: #888; font-size: 11px; margin-top: 8px;">
+            Login implicit: <strong>Admin / admin</strong>
+        </div>
     </div>
 </div>
 
@@ -1076,6 +1089,7 @@
 <div class="text-center mt-4">
     <button class="btn btn-ghost btn-sm" onclick="toggleTheme()">🌓 Schimbă tema</button>
 </div>
+
 
         </div>
     </div>
@@ -2157,10 +2171,15 @@ async function switchDbType(type) {
     
     // Actualizează butoanele
     if ($('btnDbSupabase')) {
-        $('btnDbSupabase').className = type === 'supabase' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        $('btnDbSupabase').className = type === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
     if ($('btnDbLocal')) {
-        $('btnDbLocal').className = type === 'local' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        $('btnDbLocal').className = type === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+    
+    // Arată/ascunde secțiunea de import local
+    if ($('localImportSection')) {
+        $('localImportSection').style.display = type === 'local' ? 'block' : 'none';
     }
     
     // Dacă e local, inițializează și creează utilizatorii
@@ -2169,9 +2188,10 @@ async function switchDbType(type) {
         await setupLocalAdmin();
         toast('Mod local activat. Login: Admin/admin sau Operator/1234');
     } else {
-        toast('Mod cloud activat. Folosește credențialele Supabase.');
+        toast('Mod cloud activat.');
     }
 }
+
 
 // Creează utilizatorul admin implicit pentru baza de date locală
 async function setupLocalAdmin() {
@@ -3033,7 +3053,12 @@ function updateDbTypeButtons() {
     if ($('btnDbLocal')) {
         $('btnDbLocal').className = dbType === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
+    // Arată/ascunde secțiunea de import local
+    if ($('localImportSection')) {
+        $('localImportSection').style.display = dbType === 'local' ? 'block' : 'none';
+    }
 }
+
 	
 // ================================================
 // HELPERS
@@ -5156,6 +5181,64 @@ async function printFiscalReceipt(saleData) {
     
     throw new Error('Driver necunoscut');
 }
+// Import Excel de pe pagina de login
+function importFromExcelLogin() {
+    $('importExcelLoginFile').click();
+}
+
+async function handleExcelImportLogin(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        loading(true);
+        
+        // Inițializează baza de date locală dacă nu e făcut
+        await initLocalDb();
+        
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data);
+        
+        // Verifică că fișierul are sheet-uri valide
+        const validSheets = ['products', 'categories', 'ingredients', 'recipes', 'sales', 'sale_items', 'users', 'cash_operations'];
+        const foundSheets = wb.SheetNames.filter(name => validSheets.includes(name));
+        
+        if (foundSheets.length === 0) {
+            loading(false);
+            toast('Fișierul Excel nu conține tabele valide.', 'error');
+            return;
+        }
+        
+        // Importă fiecare sheet
+        for (const sheetName of foundSheets) {
+            const ws = wb.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(ws);
+            
+            if (jsonData && jsonData.length > 0) {
+                // Șterge datele existente
+                await localDbOps.clear(sheetName);
+                
+                // Inserează noile date
+                for (const row of jsonData) {
+                    if (row.id) delete row.id; // Lasă autoIncrement să genereze ID-uri noi
+                    await localDbOps.insert(sheetName, row);
+                }
+            }
+        }
+        
+        loading(false);
+        toast(`Import realizat! ${foundSheets.length} tabele importate. Acum te poți loga.`);
+        
+    } catch (e) {
+        loading(false);
+        toast('Eroare la import: ' + e.message, 'error');
+        console.error('Excel import error:', e);
+    }
+    
+    // Reset input
+    event.target.value = '';
+}
+
 
 	
 // ================================================
