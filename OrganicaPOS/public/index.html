@@ -1053,6 +1053,8 @@
             </div>
           <div id="loginError"></div>
 
+<div id="loginError"></div>
+
 <div class="db-selector mb-4">
     <label style="color: #aaa; font-size: 12px; margin-bottom: 8px; display: block; text-align: center;">Tip bază de date:</label>
     <div style="display: flex; gap: 10px;">
@@ -1061,6 +1063,22 @@
     </div>
 </div>
 
+<!-- Configurare Supabase -->
+<div id="supabaseConfigSection" style="display:none; margin-bottom: 15px;">
+    <div style="padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+        <small style="color: #aaa; display: block; margin-bottom: 10px; text-align: center;">Configurare Supabase:</small>
+        <div class="form-group" style="margin-bottom: 10px;">
+            <input type="text" class="form-control" id="loginSupabaseUrl" placeholder="Supabase URL (https://xxx.supabase.co)" style="font-size: 12px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+            <input type="text" class="form-control" id="loginSupabaseKey" placeholder="Supabase Anon Key" style="font-size: 12px;">
+        </div>
+        <button type="button" class="btn btn-success btn-sm btn-block" onclick="saveSupabaseConfig()">💾 Salvează și Conectează</button>
+        <div id="supabaseStatus" style="margin-top: 10px; font-size: 11px; text-align: center;"></div>
+    </div>
+</div>
+
+<!-- Import local -->
 <div id="localImportSection" style="display:none; margin-bottom: 15px;">
     <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
         <small style="color: #aaa; display: block; margin-bottom: 8px;">Importă date din Excel sau folosește contul implicit:</small>
@@ -2161,15 +2179,80 @@
 
 
 <script>
+
+	// ================================================
+// SUPABASE CONFIGURATION
+// ================================================
+
+function loadSupabaseConfig() {
+    const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+    if ($('loginSupabaseUrl')) {
+        $('loginSupabaseUrl').value = config.url || '';
+    }
+    if ($('loginSupabaseKey')) {
+        $('loginSupabaseKey').value = config.key || '';
+    }
+}
+
+async function saveSupabaseConfig() {
+    const url = $('loginSupabaseUrl').value.trim();
+    const key = $('loginSupabaseKey').value.trim();
+    const statusDiv = $('supabaseStatus');
+    
+    if (!url || !key) {
+        statusDiv.innerHTML = '<span style="color: #ef4444;">❌ Completează URL-ul și cheia</span>';
+        return;
+    }
+    
+    statusDiv.innerHTML = '<span style="color: #3b82f6;">⏳ Se testează conexiunea...</span>';
+    
+    try {
+        // Testează conexiunea
+        const testUrl = `${url}/rest/v1/users?select=id&limit=1`;
+        const response = await fetch(testUrl, {
+            headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`
+            }
+        });
+        
+        if (response.ok) {
+            // Salvează configurația
+            localStorage.setItem('supabaseConfig', JSON.stringify({ url, key }));
+            
+            // Actualizează variabila API globală
+            window.SUPABASE_URL = url;
+            window.SUPABASE_KEY = key;
+            
+            statusDiv.innerHTML = '<span style="color: #22c55e;">✅ Conectat cu succes! Acum te poți loga.</span>';
+            toast('Supabase conectat cu succes!');
+        } else {
+            throw new Error('Răspuns invalid de la server');
+        }
+    } catch (e) {
+        console.error('Supabase test error:', e);
+        statusDiv.innerHTML = '<span style="color: #ef4444;">❌ Eroare conexiune. Verifică URL-ul și cheia.</span>';
+    }
+}
+
+function initSupabaseFromConfig() {
+    const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+    if (config.url && config.key) {
+        window.SUPABASE_URL = config.url;
+        window.SUPABASE_KEY = config.key;
+    }
+}
+
+	
 	// Inițializare tip bază de date
 let dbType = localStorage.getItem('dbType') || 'supabase';
 
 // Schimbă tipul de bază de date de pe pagina de login
 async function switchDbType(type) {
-    dbType = type;  // ← Această linie trebuie să existe
+    dbType = type;
     localStorage.setItem('dbType', type);
     
-    console.log('Switched to:', dbType);  // ← Adaugă asta pentru debug
+    console.log('Switched to:', dbType);
     
     // Actualizează butoanele
     if ($('btnDbSupabase')) {
@@ -2179,7 +2262,10 @@ async function switchDbType(type) {
         $('btnDbLocal').className = type === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
     
-    // Arată/ascunde secțiunea de import local
+    // Arată/ascunde secțiunile
+    if ($('supabaseConfigSection')) {
+        $('supabaseConfigSection').style.display = type === 'supabase' ? 'block' : 'none';
+    }
     if ($('localImportSection')) {
         $('localImportSection').style.display = type === 'local' ? 'block' : 'none';
     }
@@ -2190,9 +2276,12 @@ async function switchDbType(type) {
         await setupLocalAdmin();
         toast('Mod local activat. Login: Admin/admin sau Operator/1234');
     } else {
+        // Încarcă configurația Supabase salvată
+        loadSupabaseConfig();
         toast('Mod cloud activat.');
     }
 }
+
 
 
 
@@ -3038,7 +3127,18 @@ async function handleExcelImport(event) {
 // ================================================
 // CONFIG & STATE
 // ================================================
-const API = '/api';
+let API = '/api';
+
+// Funcție pentru a obține URL-ul API corect
+function getApiUrl() {
+    if (dbType === 'supabase') {
+        const config = JSON.parse(localStorage.getItem('supabaseConfig') || '{}');
+        if (config.url) {
+            return config.url + '/rest/v1';
+        }
+    }
+    return '/api';
+}
 let token = sessionStorage.getItem('pos_token');
 let user = null;
 let categories = [];
@@ -3054,18 +3154,26 @@ let appSettings = {};
 
 
 // Actualizează UI-ul la încărcare
-function updateDbTypeButtons() {
+ffunction updateDbTypeButtons() {
     if ($('btnDbSupabase')) {
         $('btnDbSupabase').className = dbType === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
     if ($('btnDbLocal')) {
         $('btnDbLocal').className = dbType === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
-    // Arată/ascunde secțiunea de import local
+    // Arată/ascunde secțiunile
+    if ($('supabaseConfigSection')) {
+        $('supabaseConfigSection').style.display = dbType === 'supabase' ? 'block' : 'none';
+    }
     if ($('localImportSection')) {
         $('localImportSection').style.display = dbType === 'local' ? 'block' : 'none';
     }
+    // Încarcă config Supabase dacă e cazul
+    if (dbType === 'supabase') {
+        loadSupabaseConfig();
+    }
 }
+
 
 	
 // ================================================
