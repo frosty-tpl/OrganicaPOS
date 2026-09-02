@@ -2166,8 +2166,10 @@ let dbType = localStorage.getItem('dbType') || 'supabase';
 
 // Schimbă tipul de bază de date de pe pagina de login
 async function switchDbType(type) {
-    dbType = type;
+    dbType = type;  // ← Această linie trebuie să existe
     localStorage.setItem('dbType', type);
+    
+    console.log('Switched to:', dbType);  // ← Adaugă asta pentru debug
     
     // Actualizează butoanele
     if ($('btnDbSupabase')) {
@@ -2191,6 +2193,7 @@ async function switchDbType(type) {
         toast('Mod cloud activat.');
     }
 }
+
 
 
 // Creează utilizatorul admin implicit pentru baza de date locală
