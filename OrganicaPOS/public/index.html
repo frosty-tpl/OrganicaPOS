@@ -3154,7 +3154,7 @@ let appSettings = {};
 
 
 // Actualizează UI-ul la încărcare
-ffunction updateDbTypeButtons() {
+function updateDbTypeButtons() {
     if ($('btnDbSupabase')) {
         $('btnDbSupabase').className = dbType === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
     }
