@@ -2946,28 +2946,7 @@ let localDb = null;
 const DB_NAME = 'OrganicaPOS';
 const DB_VERSION = 1;
 
-// Schimbă tipul de bază de date de pe pagina de login
-async function switchDbType(type) {
-    dbType = type;
-    localStorage.setItem('dbType', type);
-    
-    // Actualizează butoanele
-    if ($('btnDbSupabase')) {
-        $('btnDbSupabase').className = type === 'supabase' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-    }
-    if ($('btnDbLocal')) {
-        $('btnDbLocal').className = type === 'local' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-    }
-    
-    // Dacă e local, inițializează și creează utilizatorii
-    if (type === 'local') {
-        await initLocalDb();
-        await setupLocalAdmin();
-        toast('Mod local activat. Login: Admin/admin sau Operator/1234');
-    } else {
-        toast('Mod cloud activat.');
-    }
-}
+
 
 // Actualizează UI-ul la încărcare
 function updateDbTypeButtons() {
@@ -3271,13 +3250,7 @@ function showApp() {
     document.body.classList.add('role-' + (user?.role || 'operator'));
 }
 
-	<div class="db-selector mb-4">
-    <label style="color: #ccc; font-size: 12px; margin-bottom: 8px; display: block;">Tip conexiune:</label>
-    <div style="display: flex; gap: 10px;">
-        <button type="button" class="btn btn-sm" id="btnDbSupabase" onclick="switchDbType('supabase')" style="flex:1;">☁️ Cloud</button>
-        <button type="button" class="btn btn-sm" id="btnDbLocal" onclick="switchDbType('local')" style="flex:1;">💻 Local</button>
-    </div>
-</div>
+	
 
 	
 $('loginForm').onsubmit = async e => {
