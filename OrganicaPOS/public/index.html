@@ -2079,33 +2079,29 @@
             <input type="hidden" id="ingId">
             <div class="form-group">
                 <label>Nume ingredient</label>
-                <input type="text" id="ingName" required placeholder="ex: Vodka, Rom, Lime...">
+                <input type="text" class="form-control" id="ingName" required placeholder="ex: Vodka, Rom, Lime...">
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Unitate de măsură</label>
-                    <select id="ingUnit">
-                        <option value="ml">ml (mililitri)</option>
-                        <option value="l">l (litri)</option>
-                        <option value="g">g (grame)</option>
-                        <option value="kg">kg (kilograme)</option>
-                        <option value="buc">buc (bucăți)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Cost per unitate (RON)</label>
-                    <input type="number" id="ingCost" step="0.01" min="0" value="0" placeholder="0.00">
-                </div>
+            <div class="form-group">
+                <label>Unitate de măsură</label>
+                <select class="form-control" id="ingUnit">
+                    <option value="ml">ml (mililitri)</option>
+                    <option value="l">l (litri)</option>
+                    <option value="g">g (grame)</option>
+                    <option value="kg">kg (kilograme)</option>
+                    <option value="buc">buc (bucăți)</option>
+                </select>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Stoc actual</label>
-                    <input type="number" id="ingStock" step="0.001" min="0" value="0">
-                </div>
-                <div class="form-group">
-                    <label>Stoc minim (alertă)</label>
-                    <input type="number" id="ingMinStock" step="0.001" min="0" value="0">
-                </div>
+            <div class="form-group">
+                <label>Cost per unitate (RON)</label>
+                <input type="number" class="form-control" id="ingCost" step="0.01" min="0" value="0" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Stoc actual</label>
+                <input type="number" class="form-control" id="ingStock" step="0.001" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label>Stoc minim (alertă)</label>
+                <input type="number" class="form-control" id="ingMinStock" step="0.001" min="0" value="0">
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('ingredientModal')">Anulează</button>
@@ -2114,6 +2110,7 @@
         </form>
     </div>
 </div>
+
 
 <!-- SUPPLY MODAL -->
 <div class="modal-overlay" id="supplyModal">
