@@ -5119,6 +5119,7 @@ async function saveRecipe() {
     loading(true);
     
     try {
+        // Salvează rețeta
         const res = await api('recipes?action=save', {
             method: 'POST',
             body: JSON.stringify({
@@ -5131,8 +5132,38 @@ async function saveRecipe() {
         });
         
         if (res.success) {
+            // Calculează costul total din ingrediente
+            let totalCost = 0;
+            for (const item of currentRecipe) {
+                const ingredient = ingredients.find(i => i.id === item.ingredient_id);
+                if (ingredient) {
+                    const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
+                    const quantity = parseFloat(item.quantity) || 0;
+                    totalCost += costPerUnit * quantity;
+                }
+            }
+            
+            // Actualizează costul produsului
+            const product = products.find(p => p.id === parseInt(productId));
+            if (product) {
+                await api('products?action=update', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        id: parseInt(productId),
+                        name: product.name,
+                        category_id: product.category_id,
+                        icon: product.icon,
+                        price: product.price,
+                        cost: totalCost,
+                        stock: product.stock,
+                        min_stock: product.min_stock,
+                        product_type: 'complex'
+                    })
+                });
+            }
+            
             closeModal('recipeModal');
-            toast('Rețeta a fost salvată!');
+            toast(`Rețeta salvată! Cost calculat: ${totalCost.toFixed(2)} RON`);
             await loadProducts();
             await loadProdTable();
         }
@@ -5142,6 +5173,7 @@ async function saveRecipe() {
     
     loading(false);
 }
+
 
 
 	function setProductType(type) {
