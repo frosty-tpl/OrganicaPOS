@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Organica POS v2 - Sistem de Vânzare</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+    <link rel="icon" href="logo_organica.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1046,10 +1046,13 @@
     <!-- Login Page -->
     <div class="login-page" id="loginPage">
         <div class="login-box">
+				<div style="text-align: center; margin-bottom: 20px;">
+					    <img src="logo_organica.png" alt="Organica POS" style="max-width: 150px; height: auto;">
+							</div>
             <div class="login-logo">
-                <div class="icon">🍺</div>
+             
                 <h1>Organica POS v2</h1>
-                <p>Sistem de gestiune și vânzare</p>
+                <p>Sistem de gestiune și vânzare by Frosty</p>
             </div>
           <div id="loginError"></div>
 
@@ -1117,7 +1120,7 @@
         <!-- Header -->
         <header class="header">
             <div class="header-brand">
-                <span>🍺</span>
+                <span></span>
                 <span>Organica POS v2</span>
             </div>
             <div class="header-info">
@@ -3841,7 +3844,10 @@ async function confirmPay() {
             
             $('receiptContent').innerHTML = `
                 <div class="receipt-header">
-                    <div class="receipt-title">Organica POS v2</div>
+                    <div class="logo">
+    					<img src="logo_organica.png" alt="Organica POS" style="height: 36px; vertical-align: middle; margin-right: 10px;">
+    					Organica POS
+						</div>
                     <div>${new Date().toLocaleString('ro-RO')}</div>
                     <div>Operator: ${user.name}</div>
                 </div>
