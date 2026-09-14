@@ -1524,95 +1524,350 @@
     </div>
 </div>
 
-	<!-- CASH REGISTER SETTINGS -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h3>🖨️ Configurare Casă de Marcat</h3>
-    </div>
-    <div class="card-body">
-        <div class="form-row">
-            <div class="form-group">
-                <label>Marcă</label>
-                <select id="crBrand" onchange="updateCRModels()">
-                    <option value="">-- Selectează marca --</option>
-                    <option value="daisy">Daisy</option>
-                    <option value="datecs">Datecs</option>
-                    <option value="partner">Partner</option>
-                    <option value="tremol">Tremol</option>
-                    <option value="eltrade">Eltrade</option>
-                    <option value="activa">Activa</option>
-                    <option value="mercury">Mercury</option>
-                    <option value="custom">Altă marcă</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Model</label>
-                <select id="crModel" onchange="updateCRDriver()">
-                    <option value="">-- Selectează mai întâi marca --</option>
-                </select>
-            </div>
-        </div>
+	// ================================================
+// CASH REGISTER - FISCO API (conform documentație oficială)
+// ================================================
+
+// Testare conexiune casă de marcat
+async function testCashRegister() {
+    const driver = $('crDriver').value;
+    const port = $('crPort').value;
+    
+    if (!port) {
+        showCRStatus('error', '❌ Introdu adresa/portul casei de marcat');
+        return;
+    }
+    
+    showCRStatus('info', '⏳ Se testează conexiunea...');
+    
+    try {
+        if (driver === 'fisco') {
+            // Fisco - endpoint corect conform documentație
+            const response = await fetch(`${port}/api/v1/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok && result.printer?.ready) {
+                showCRStatus('success', `✅ <strong>Conexiune reușită!</strong><br>
+                    Driver: ${result.service || 'Fisco'}<br>
+                    Imprimantă: ${result.printer.status}<br>
+                    Serial: ${result.printer.serial || 'N/A'}`);
+            } else if (result.ok && !result.printer?.ready) {
+                showCRStatus('error', `⚠️ <strong>Driver conectat, dar imprimanta nu e pregătită:</strong><br>
+                    ${result.printer?.error || 'Verifică conexiunea imprimantei'}`);
+            } else {
+                throw new Error('Răspuns neașteptat de la driver');
+            }
+            
+        } else if (driver === 'datecs') {
+            const response = await fetch(`${port}/status`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+            if (response.ok) {
+                showCRStatus('success', '✅ <strong>Conexiune reușită!</strong> Datecs conectat.');
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+        } else if (driver === 'tremol') {
+            const response = await fetch(`${port}/api/status`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+            if (response.ok) {
+                showCRStatus('success', '✅ <strong>Conexiune reușită!</strong> Tremol conectat.');
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+        } else {
+            showCRStatus('error', '❌ Pentru Serial/USB, testarea necesită aplicația desktop.');
+            return;
+        }
         
-        <div class="form-row">
-            <div class="form-group">
-                <label>Driver / Protocol</label>
-                <select id="crDriver" onchange="updateCRPort()">
-                    <option value="fisco">Fisco HTTP API</option>
-                    <option value="datecs">Datecs Direct</option>
-                    <option value="tremol">Tremol SDK</option>
-                    <option value="serial">Port Serial (COM)</option>
-                    <option value="usb">USB Direct</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Port / Adresă API</label>
-                <input type="text" id="crPort" placeholder="ex: http://127.0.0.1:4040 sau COM3">
-            </div>
-        </div>
+    } catch (e) {
+        if (e.name === 'AbortError' || e.message.includes('timeout')) {
+            showCRStatus('error', `❌ <strong>Timeout!</strong> Casa de marcat nu răspunde la ${port}<br>
+                <small>Verifică că driverul Fisco este pornit.</small>`);
+        } else if (e.message.includes('Failed to fetch')) {
+            showCRStatus('error', `❌ <strong>Eroare conexiune!</strong><br>
+                Nu se poate conecta la ${port}.<br>
+                <small>• Verifică că driverul Fisco este pornit<br>
+                • Verifică firewall-ul Windows<br>
+                • Din browser extern nu poți accesa localhost</small>`);
+        } else {
+            showCRStatus('error', `❌ <strong>Eroare:</strong> ${e.message}`);
+        }
+    }
+}
+
+// Printare bon fiscal (conform documentație Fisco)
+async function printFiscalReceipt(saleData) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.printReceipt) {
+        return { success: true, skipped: true };
+    }
+    
+    const driver = settings.driver;
+    const port = settings.port;
+    
+    try {
+        if (driver === 'fisco') {
+            // Construiește comenzile în sintaxa simplificată Fisco
+            const commands = [];
+            
+            // Adaugă produsele
+            for (const item of saleData.items) {
+                // Preț în bani (fără separator): 350 = 3.50 RON
+                const priceBani = Math.round(item.price * 100);
+                // Cantitate cu 3 zecimale: 1000 = 1.000 buc
+                const qty = Math.round(item.quantity * 1000);
+                // Denumire (max 30 caractere, fără ^)
+                const name = item.name.substring(0, 30).replace(/\^/g, ' ');
+                
+                // S^<Denumire>^<Preț>^<Cantitate>^<UM>^<CotaTVA>^<Departament>
+                // Cota TVA: 1=A, 2=B, 3=C, 4=D, 5=Scutit
+                commands.push(`S^${name}^${priceBani}^${qty}^buc^2^1`);
+            }
+            
+            // Adaugă plata
+            // P^<TipPlată>^<Sumă>
+            // TipPlată: 1=Numerar, 2=Card, 3=Credit, 4=Tichet masă, etc.
+            const totalBani = Math.round(saleData.total * 100);
+            const tipPlata = saleData.payment_method === 'card' ? '2' : '1';
+            commands.push(`P^${tipPlata}^${totalBani}`);
+            
+            // Trimite către Fisco API
+            const response = await fetch(`${port}/api/v1/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    syntax: 'simplu',
+                    version: '1.0',
+                    external_id: `bon-${Date.now()}`,
+                    commands: commands
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!result.ok) {
+                throw new Error(result.error?.message || 'Eroare la trimiterea bonului');
+            }
+            
+            // Verifică statusul jobului (polling)
+            const jobId = result.job_id;
+            const finalResult = await pollFiscoJobStatus(port, jobId);
+            
+            return { success: true, data: finalResult };
+            
+        } else if (driver === 'datecs') {
+            // Protocol Datecs
+            const items = saleData.items.map(item => ({
+                name: item.name.substring(0, 30),
+                price: item.price,
+                quantity: item.quantity,
+                taxGroup: 'B'
+            }));
+            
+            const response = await fetch(`${port}/fiscal/receipt`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items,
+                    payments: [{
+                        type: saleData.payment_method === 'card' ? 'card' : 'cash',
+                        amount: saleData.total
+                    }]
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+            return { success: true, data: result };
+            
+        } else if (driver === 'tremol') {
+            // Protocol Tremol
+            const response = await fetch(`${port}/api/receipt`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: saleData.items.map(item => ({
+                        text: item.name,
+                        price: item.price,
+                        qty: item.quantity,
+                        taxCode: 2
+                    })),
+                    payment: {
+                        type: saleData.payment_method === 'card' ? 1 : 0,
+                        amount: saleData.total
+                    }
+                })
+            });
+            
+            const result = await response.json();
+            return { success: true, data: result };
+        }
         
-        <div class="form-divider"></div>
+        throw new Error('Driver necunoscut');
         
-        <div class="form-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="crEnabled"> 
-                <span>Activează casa de marcat</span>
-            </label>
-        </div>
+    } catch (e) {
+        console.error('Eroare printare bon fiscal:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+// Polling pentru statusul jobului Fisco
+async function pollFiscoJobStatus(port, jobId, maxAttempts = 30) {
+    for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Așteaptă 1 secundă
         
-        <div class="form-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="crPrintReceipt" checked> 
-                <span>Printează bon fiscal la fiecare vânzare</span>
-            </label>
-        </div>
+        try {
+            const response = await fetch(`${port}/api/v1/status?job_id=${jobId}`);
+            const result = await response.json();
+            
+            if (result.status === 'printed') {
+                return {
+                    success: true,
+                    slipNumber: result.result?.SlipNumber,
+                    zReport: result.result?.nZrep,
+                    fiscalNumber: result.result?.nFNum,
+                    deviceSerial: result.result?.DeviceSerial
+                };
+            }
+            
+            if (result.status === 'failed') {
+                throw new Error(result.error?.message || 'Printarea a eșuat');
+            }
+            
+            // Dacă e încă în procesare (queued/processing), continuă polling
+            
+        } catch (e) {
+            console.error('Eroare verificare status:', e);
+        }
+    }
+    
+    throw new Error('Timeout - bonul nu a fost confirmat în 30 secunde');
+}
+
+// Emitere Bon Test
+async function printTestReceipt() {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.port) {
+        toast('Casa de marcat nu este configurată sau activată', 'error');
+        return;
+    }
+    
+    showCRStatus('info', '⏳ Se emite bonul de test...');
+    
+    try {
+        if (settings.driver === 'fisco') {
+            // Bon test conform documentație Fisco
+            const commands = [
+                'S^Produs Test 1^1000^1000^buc^2^1',  // 10.00 RON x 1
+                'S^Produs Test 2^500^2000^buc^2^1',   // 5.00 RON x 2
+                'P^1^2000'  // Plată numerar 20.00 RON
+            ];
+            
+            const response = await fetch(`${settings.port}/api/v1/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    syntax: 'simplu',
+                    version: '1.0',
+                    external_id: `test-${Date.now()}`,
+                    commands: commands
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok) {
+                // Verifică statusul
+                const finalResult = await pollFiscoJobStatus(settings.port, result.job_id);
+                showCRStatus('success', `✅ Bon test emis cu succes!<br>
+                    Nr. bon: ${finalResult.slipNumber || 'N/A'}<br>
+                    Raport Z: ${finalResult.zReport || 'N/A'}`);
+                toast('Bon test emis cu succes!');
+            } else {
+                throw new Error(result.error?.message || 'Eroare la emiterea bonului');
+            }
+            
+        } else {
+            throw new Error('Funcția de test este disponibilă doar pentru driver Fisco');
+        }
         
-        <div class="form-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="crAutoReportX"> 
-                <span>Raport X automat la schimb de tură</span>
-            </label>
-        </div>
+    } catch (e) {
+        console.error('Eroare bon test:', e);
+        showCRStatus('error', `❌ Eroare: ${e.message}`);
+        toast('Eroare la emiterea bonului test: ' + e.message, 'error');
+    }
+}
+
+// Comenzi casă de marcat (Raport X, Z)
+async function sendCashRegisterCommand(command) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled || !settings.port) {
+        toast('Casa de marcat nu este configurată sau activată', 'error');
+        return;
+    }
+    
+    loading(true);
+    
+    try {
+        if (settings.driver === 'fisco') {
+            // Comenzi conform documentație Fisco
+            const cmdMap = {
+                'report_x': 'X^',
+                'report_z': 'Z^'
+            };
+            
+            const response = await fetch(`${settings.port}/api/v1/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    syntax: 'simplu',
+                    version: '1.0',
+                    external_id: `${command}-${Date.now()}`,
+                    commands: [cmdMap[command]]
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok) {
+                const finalResult = await pollFiscoJobStatus(settings.port, result.job_id);
+                toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
+            } else {
+                throw new Error(result.error?.message || 'Eroare casă de marcat');
+            }
+            
+        } else if (settings.driver === 'datecs') {
+            const endpoint = command === 'report_x' ? '/fiscal/report/x' : '/fiscal/report/z';
+            const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
+            
+        } else if (settings.driver === 'tremol') {
+            const endpoint = command === 'report_x' ? '/api/report/x' : '/api/report/z';
+            await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
+        }
         
-        <div class="form-divider"></div>
-        
-        <div class="cr-actions">
-            <button type="button" class="btn btn-secondary" onclick="testCashRegister()">
-                🔌 Testează Conexiunea
-            </button>
-            <button type="button" class="btn btn-info" onclick="sendCashRegisterCommand('report_x')">
-                📋 Raport X
-            </button>
-            <button type="button" class="btn btn-warning" onclick="sendCashRegisterCommand('report_z')">
-                📊 Raport Z
-            </button>
-            <button type="button" class="btn btn-primary" onclick="saveCRSettings()">
-                💾 Salvează
-            </button>
-        </div>
-        
-        <div id="crStatus" class="cr-status" style="display:none;"></div>
-    </div>
-</div>
+    } catch (e) {
+        toast('Eroare: ' + e.message, 'error');
+    }
+    
+    loading(false);
+}
 
 
 
