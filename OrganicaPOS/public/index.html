@@ -2083,7 +2083,7 @@
             </div>
             <div class="form-group">
                 <label>Unitate de măsură</label>
-                <select class="form-control" id="ingUnit" onchange="updateStockCalculation()">
+                <select class="form-control" id="ingUnit">
                     <option value="ml">ml (mililitri)</option>
                     <option value="l">l (litri)</option>
                     <option value="g">g (grame)</option>
@@ -2095,34 +2095,14 @@
                 <label>Cost per unitate (RON)</label>
                 <input type="number" class="form-control" id="ingCost" step="0.01" min="0" value="0" placeholder="0.00">
             </div>
-            
-            <div class="form-divider"></div>
-            <h4 style="margin-bottom: 15px; color: var(--text-secondary);">📦 Gestiune Stoc</h4>
-            
             <div class="form-group">
-                <label>Număr sticle/pachete disponibile</label>
-                <input type="number" class="form-control" id="ingBottles" step="1" min="0" value="0" onchange="updateStockCalculation()" oninput="updateStockCalculation()">
-            </div>
-            <div class="form-group">
-                <label>Cantitate per sticlă/pachet</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" class="form-control" id="ingBottleSize" step="0.01" min="0" value="700" onchange="updateStockCalculation()" oninput="updateStockCalculation()" style="flex: 1;">
-                    <span id="ingBottleSizeUnit" style="display: flex; align-items: center; padding: 0 10px; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">ml</span>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Stoc total calculat</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" class="form-control" id="ingStock" step="0.001" min="0" value="0" style="flex: 1;" readonly>
-                    <span id="ingStockUnit" style="display: flex; align-items: center; padding: 0 10px; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">ml</span>
-                </div>
-                <small style="color: var(--text-muted); margin-top: 5px; display: block;">Calculat automat: sticle × cantitate per sticlă</small>
+                <label>Stoc actual</label>
+                <input type="number" class="form-control" id="ingStock" step="0.001" min="0" value="0">
             </div>
             <div class="form-group">
                 <label>Stoc minim (alertă)</label>
                 <input type="number" class="form-control" id="ingMinStock" step="0.001" min="0" value="0">
             </div>
-            
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('ingredientModal')">Anulează</button>
                 <button type="submit" class="btn btn-primary">💾 Salvează</button>
@@ -2130,6 +2110,7 @@
         </form>
     </div>
 </div>
+
 
 <!-- SUPPLY MODAL -->
 <div class="modal-overlay" id="supplyModal">
@@ -2196,64 +2177,7 @@
 
 <script>
 
-// Salvare ingredient
-$('ingredientForm').onsubmit = async e => {
-    e.preventDefault();
-    loading(true);
-    try {
-        const id = $('ingId').value;
-        const bottles = parseFloat($('ingBottles').value) || 0;
-        const bottleSize = parseFloat($('ingBottleSize').value) || 0;
-        const calculatedStock = bottles * bottleSize;
-        
-        const res = await api(`ingredients?action=${id ? 'update' : 'create'}`, {
-            method: 'POST',
-            body: JSON.stringify({
-                id: id || undefined,
-                name: $('ingName').value,
-                unit: $('ingUnit').value,
-                bottles: bottles,
-                bottle_size: bottleSize,
-                stock: calculatedStock,
-                min_stock: parseFloat($('ingMinStock').value) || 0,
-                cost_per_unit: parseFloat($('ingCost').value) || 0
-            })
-        });
-        if (res.success) {
-            closeModal('ingredientModal');
-            toast(id ? 'Ingredient actualizat!' : 'Ingredient adăugat!');
-            await loadIngredients();
-            loadIngredientsTable();
-        }
-    } catch (e) { toast(e.message, 'error'); }
-    loading(false);
-};
-
-	
-// Calculează stocul total din sticle
-function updateStockCalculation() {
-    const bottles = parseFloat($('ingBottles')?.value) || 0;
-    const bottleSize = parseFloat($('ingBottleSize')?.value) || 0;
-    const unit = $('ingUnit')?.value || 'ml';
-    
-    // Calculează stocul total
-    const totalStock = bottles * bottleSize;
-    
-    // Actualizează câmpul de stoc
-    if ($('ingStock')) {
-        $('ingStock').value = totalStock.toFixed(3);
-    }
-    
-    // Actualizează unitățile afișate
-    if ($('ingBottleSizeUnit')) {
-        $('ingBottleSizeUnit').textContent = unit;
-    }
-    if ($('ingStockUnit')) {
-        $('ingStockUnit').textContent = unit;
-    }
-}	
-	
-// ================================================
+	// ================================================
 // SUPABASE CONFIGURATION
 // ================================================
 
@@ -2612,31 +2536,14 @@ async function localApiHandler(endpoint, options = {}) {
                 const data = await localDbOps.getAll('ingredients');
                 return { success: true, data };
             }
-           if (action === 'create') {
-  				const data = await localDbOps.insert('ingredients', {
-        			name: body.name,
-        			unit: body.unit || 'ml',
-        			cost_per_unit: body.cost_per_unit || 0,
-        			bottles: body.bottles || 0,
-        			bottle_size: body.bottle_size || 700,
-        			stock: body.stock || 0,
-        			min_stock: body.min_stock || 0
-    		});
-    			return { success: true, data };
-			}
-			if (action === 'update') {
-    			const data = await localDbOps.update('ingredients', {
-        			id: body.id,
-        			name: body.name,
-        			unit: body.unit,
-        			cost_per_unit: body.cost_per_unit,
-        			bottles: body.bottles,
-        			bottle_size: body.bottle_size,
-        			stock: body.stock,
-        			min_stock: body.min_stock
-    		});
-    			return { success: true, data };
-			}
+            if (action === 'create') {
+                const data = await localDbOps.insert('ingredients', body);
+                return { success: true, data };
+            }
+            if (action === 'update') {
+                const data = await localDbOps.update('ingredients', body);
+                return { success: true, data };
+            }
             if (action === 'update_stock') {
                 const ingredient = await localDbOps.getById('ingredients', body.id);
                 ingredient.stock = parseFloat(ingredient.stock) + parseFloat(body.quantity);
@@ -4913,25 +4820,48 @@ function checkLowStock() {
 }
 
 function openIngredient(id = null) {
-    const ing = id ? ingredients.find(i => i.id === id) : null;
+    const ing = id ? ingredients.find(x => x.id === id) : null;
     
+    $('ingredientModalTitle').textContent = ing ? '✏️ Editare Ingredient' : '➕ Ingredient Nou';
     $('ingId').value = ing?.id || '';
     $('ingName').value = ing?.name || '';
     $('ingUnit').value = ing?.unit || 'ml';
-    $('ingCost').value = ing?.cost_per_unit || 0;
-    $('ingBottles').value = ing?.bottles || 0;
-    $('ingBottleSize').value = ing?.bottle_size || 700;
     $('ingStock').value = ing?.stock || 0;
     $('ingMinStock').value = ing?.min_stock || 0;
-    
-    $('ingredientModalTitle').textContent = id ? '✏️ Editare Ingredient' : '➕ Ingredient Nou';
-    
-    // Actualizează unitățile afișate
-    updateStockCalculation();
+    $('ingCost').value = ing?.cost_per_unit || 0;
     
     openModal('ingredientModal');
 }
 
+$('ingredientForm').onsubmit = async e => {
+    e.preventDefault();
+    loading(true);
+    
+    try {
+        const id = $('ingId').value;
+        const res = await api(`ingredients?action=${id ? 'update' : 'create'}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                id: id || undefined,
+                name: $('ingName').value,
+                unit: $('ingUnit').value,
+                stock: parseFloat($('ingStock').value),
+                min_stock: parseFloat($('ingMinStock').value),
+                cost_per_unit: parseFloat($('ingCost').value)
+            })
+        });
+        
+        if (res.success) {
+            closeModal('ingredientModal');
+            toast(id ? 'Ingredient actualizat!' : 'Ingredient adăugat!');
+            await loadIngredientsTable();
+        }
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+    
+    loading(false);
+};
 
 function openSupply(id) {
     const ing = ingredients.find(x => x.id === id);
