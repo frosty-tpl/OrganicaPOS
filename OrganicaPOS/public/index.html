@@ -4835,6 +4835,30 @@ function checkLowStock() {
     }
 }
 
+// Calculează stocul total din sticle
+function updateStockCalculation() {
+    const bottles = parseFloat($('ingBottles')?.value) || 0;
+    const bottleSize = parseFloat($('ingBottleSize')?.value) || 0;
+    const unit = $('ingUnit')?.value || 'ml';
+    
+    // Calculează stocul total
+    const totalStock = bottles * bottleSize;
+    
+    // Actualizează câmpul de stoc
+    if ($('ingStock')) {
+        $('ingStock').value = totalStock.toFixed(3);
+    }
+    
+    // Actualizează unitățile afișate
+    if ($('ingBottleSizeUnit')) {
+        $('ingBottleSizeUnit').textContent = unit;
+    }
+    if ($('ingStockUnit')) {
+        $('ingStockUnit').textContent = unit;
+    }
+}
+
+	
 function openIngredient(id = null) {
     const ing = id ? ingredients.find(x => x.id === id) : null;
     
