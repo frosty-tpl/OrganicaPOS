@@ -2083,7 +2083,7 @@
             </div>
             <div class="form-group">
                 <label>Unitate de măsură</label>
-                <select class="form-control" id="ingUnit">
+                <select class="form-control" id="ingUnit" onchange="updateStockCalculation()">
                     <option value="ml">ml (mililitri)</option>
                     <option value="l">l (litri)</option>
                     <option value="g">g (grame)</option>
@@ -2095,14 +2095,29 @@
                 <label>Cost per unitate (RON)</label>
                 <input type="number" class="form-control" id="ingCost" step="0.01" min="0" value="0" placeholder="0.00">
             </div>
+            
+            <div style="border-top: 1px solid var(--border); margin: 20px 0; padding-top: 15px;">
+                <h4 style="margin-bottom: 15px; color: var(--text-secondary);">📦 Gestiune Stoc</h4>
+            </div>
+            
             <div class="form-group">
-                <label>Stoc actual</label>
-                <input type="number" class="form-control" id="ingStock" step="0.001" min="0" value="0">
+                <label>Număr sticle/pachete</label>
+                <input type="number" class="form-control" id="ingBottles" step="1" min="0" value="0" oninput="updateStockCalculation()">
+            </div>
+            <div class="form-group">
+                <label>Cantitate per sticlă/pachet (<span id="ingBottleSizeUnit">ml</span>)</label>
+                <input type="number" class="form-control" id="ingBottleSize" step="0.01" min="0" value="700" oninput="updateStockCalculation()">
+            </div>
+            <div class="form-group">
+                <label>Stoc total (<span id="ingStockUnit">ml</span>)</label>
+                <input type="number" class="form-control" id="ingStock" step="0.001" min="0" value="0" readonly style="background: var(--bg-tertiary);">
+                <small style="color: var(--text-muted);">Calculat automat: sticle × cantitate per sticlă</small>
             </div>
             <div class="form-group">
                 <label>Stoc minim (alertă)</label>
                 <input type="number" class="form-control" id="ingMinStock" step="0.001" min="0" value="0">
             </div>
+            
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('ingredientModal')">Anulează</button>
                 <button type="submit" class="btn btn-primary">💾 Salvează</button>
@@ -2110,6 +2125,7 @@
         </form>
     </div>
 </div>
+
 
 
 <!-- SUPPLY MODAL -->
