@@ -4866,9 +4866,14 @@ function openIngredient(id = null) {
     $('ingId').value = ing?.id || '';
     $('ingName').value = ing?.name || '';
     $('ingUnit').value = ing?.unit || 'ml';
+    $('ingBottles').value = ing?.bottles || 0;
+    $('ingBottleSize').value = ing?.bottle_size || 700;
     $('ingStock').value = ing?.stock || 0;
     $('ingMinStock').value = ing?.min_stock || 0;
     $('ingCost').value = ing?.cost_per_unit || 0;
+    
+    // Actualizează unitățile afișate
+    updateStockCalculation();
     
     openModal('ingredientModal');
 }
@@ -4879,13 +4884,19 @@ $('ingredientForm').onsubmit = async e => {
     
     try {
         const id = $('ingId').value;
+        const bottles = parseFloat($('ingBottles').value) || 0;
+        const bottleSize = parseFloat($('ingBottleSize').value) || 0;
+        const calculatedStock = bottles * bottleSize;
+        
         const res = await api(`ingredients?action=${id ? 'update' : 'create'}`, {
             method: 'POST',
             body: JSON.stringify({
                 id: id || undefined,
                 name: $('ingName').value,
                 unit: $('ingUnit').value,
-                stock: parseFloat($('ingStock').value),
+                bottles: bottles,
+                bottle_size: bottleSize,
+                stock: calculatedStock,
                 min_stock: parseFloat($('ingMinStock').value),
                 cost_per_unit: parseFloat($('ingCost').value)
             })
@@ -4902,6 +4913,7 @@ $('ingredientForm').onsubmit = async e => {
     
     loading(false);
 };
+
 
 function openSupply(id) {
     const ing = ingredients.find(x => x.id === id);
