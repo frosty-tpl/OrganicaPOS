@@ -4979,6 +4979,26 @@ async function deleteIngredient(id) {
 // ================================================
 let currentRecipe = [];
 
+// Calculează costul total al rețetei
+async function calculateRecipeCost(productId) {
+    try {
+        const res = await api(`recipes?action=get&product_id=${productId}`);
+        if (res.success && res.data && res.data.length > 0) {
+            let totalCost = 0;
+            for (const item of res.data) {
+                const ingredientCost = parseFloat(item.ingredient?.cost_per_unit) || 0;
+                const quantity = parseFloat(item.quantity) || 0;
+                totalCost += ingredientCost * quantity;
+            }
+            return totalCost;
+        }
+    } catch (e) {
+        console.error('Eroare calcul cost rețetă:', e);
+    }
+    return 0;
+}
+
+	
 async function openRecipe(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
