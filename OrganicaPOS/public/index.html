@@ -1980,7 +1980,25 @@
     </div>
 </div>
 
-	
+	<!-- TOTAL VÂNZĂRI -->
+<div class="stats-row mb-4">
+    <div class="stat-card" style="background: linear-gradient(135deg, #27ae60, #1e8449);">
+        <div class="stat-icon">💵</div>
+        <div class="stat-value" id="totalCashSales">0.00 RON</div>
+        <div class="stat-label">VÂNZĂRI CASH</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #3498db, #2980b9);">
+        <div class="stat-icon">💳</div>
+        <div class="stat-value" id="totalCardSales">0.00 RON</div>
+        <div class="stat-label">VÂNZĂRI CARD</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value" id="totalAllSales">0.00 RON</div>
+        <div class="stat-label">TOTAL VÂNZĂRI</div>
+    </div>
+</div>
+
 
 	
     <!-- Confirm Modal -->
@@ -4707,9 +4725,20 @@ async function loadCashSummary() {
         const res = await api('cash?action=summary');
         if (res.success) {
             const d = res.data;
+            
+            const cashSales = parseFloat(d.cash_sales || d.sales || 0);
+            const cardSales = parseFloat(d.card_sales || 0);
+            const totalSales = cashSales + cardSales;
+            
+            // Total vânzări (carduri noi)
+            if ($('totalCashSales')) $('totalCashSales').textContent = fmt(cashSales) + ' RON';
+            if ($('totalCardSales')) $('totalCardSales').textContent = fmt(cardSales) + ' RON';
+            if ($('totalAllSales')) $('totalAllSales').textContent = fmt(totalSales) + ' RON';
+            
+            // Sumarul casei (carduri existente)
             if ($('cashOpen')) $('cashOpen').textContent = fmt(d.opening || 0);
-            if ($('cashSales')) $('cashSales').textContent = fmt(d.cash_sales || d.sales || 0);
-            if ($('cashCard')) $('cashCard').textContent = fmt(d.card_sales || 0);
+            if ($('cashSales')) $('cashSales').textContent = fmt(cashSales);
+            if ($('cashCard')) $('cashCard').textContent = fmt(cardSales);
             if ($('cashDeposits')) $('cashDeposits').textContent = fmt(d.deposits || 0);
             if ($('cashWithdrawals')) $('cashWithdrawals').textContent = fmt(d.withdrawals || 0);
             if ($('cashCurrent')) $('cashCurrent').textContent = fmt(d.balance || d.current || 0);
