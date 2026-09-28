@@ -1608,6 +1608,11 @@
             <button type="button" class="btn btn-primary" onclick="saveCRSettings()">
                 💾 Salvează
             </button>
+			<button type="button" class="btn btn-secondary" onclick="showReceiptsHistory()">
+    			🧾 Istoric Bonuri
+    		<span id="failedReceiptsBadge" class="badge badge-danger" style="display: none; margin-left: 5px;">0</span>
+			</button>
+
         </div>
         
         <div id="crStatus" class="cr-status" style="display:none;"></div>
@@ -2189,9 +2194,515 @@
     </div>
 </div>
 
+<!-- RECEIPTS HISTORY MODAL -->
+<div class="modal-overlay" id="receiptsHistoryModal">
+    <div class="modal" style="max-width: 1000px;">
+        <div class="modal-header">
+            <h3>🧾 Istoric Bonuri Fiscale</h3>
+            <button class="btn-close" onclick="closeModal('receiptsHistoryModal')">✕</button>
+        </div>
+        <div class="modal-body" id="receiptsHistoryContent">
+            <!-- Conținutul se generează dinamic -->
+        </div>
+    </div>
+</div>
 
+<!-- RECEIPT DETAILS MODAL -->
+<div class="modal-overlay" id="receiptDetailsModal">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>📋 Detalii Bon</h3>
+            <button class="btn-close" onclick="closeModal('receiptDetailsModal')">✕</button>
+        </div>
+        <div class="modal-body" id="receiptDetailsContent">
+            <!-- Conținutul se generează dinamic -->
+        </div>
+    </div>
+</div>
+
+
+	
 
 <script>
+
+
+	// ================================================
+// ISTORIC BONURI FISCALE
+// ================================================
+
+// Salvează bon în istoric
+function saveReceiptToHistory(saleData, status, fiscalData = null, error = null) {
+    const history = JSON.parse(localStorage.getItem('receiptsHistory') || '[]');
+    
+    const receipt = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        saleData: saleData,
+        status: status, // 'printed', 'failed', 'pending'
+        fiscalData: fiscalData, // Date de la casa de marcat (nr bon, etc.)
+        error: error,
+        attempts: 1,
+        lastAttempt: new Date().toISOString()
+    };
+    
+    history.unshift(receipt); // Adaugă la început
+    
+    // Păstrează ultimele 500 bonuri
+    if (history.length > 500) {
+        history.pop();
+    }
+    
+    localStorage.setItem('receiptsHistory', JSON.stringify(history));
+    updateReceiptsHistoryCount();
+    
+    return receipt;
+}
+
+// Actualizează statusul unui bon în istoric
+function updateReceiptStatus(id, status, fiscalData = null, error = null) {
+    const history = JSON.parse(localStorage.getItem('receiptsHistory') || '[]');
+    const idx = history.findIndex(r => r.id === id);
+    
+    if (idx !== -1) {
+        history[idx].status = status;
+        history[idx].lastAttempt = new Date().toISOString();
+        history[idx].attempts += 1;
+        
+        if (fiscalData) history[idx].fiscalData = fiscalData;
+        if (error) history[idx].error = error;
+        
+        localStorage.setItem('receiptsHistory', JSON.stringify(history));
+        updateReceiptsHistoryCount();
+    }
+}
+
+// Obține istoricul bonurilor
+function getReceiptsHistory(filter = 'all') {
+    const history = JSON.parse(localStorage.getItem('receiptsHistory') || '[]');
+    
+    if (filter === 'all') return history;
+    return history.filter(r => r.status === filter);
+}
+
+// Obține numărul de bonuri neprintate
+function getFailedReceiptsCount() {
+    const history = getReceiptsHistory();
+    return history.filter(r => r.status === 'failed' || r.status === 'pending').length;
+}
+
+// Actualizează contorul din header
+function updateReceiptsHistoryCount() {
+    const failedCount = getFailedReceiptsCount();
+    const countEl = $('failedReceiptsCount');
+    const btnEl = $('btnReceiptsHistory');
+    const badgeEl = $('failedReceiptsBadge');
+    
+    if (countEl) countEl.textContent = failedCount;
+    if (badgeEl) {
+        badgeEl.style.display = failedCount > 0 ? 'inline-flex' : 'none';
+        badgeEl.textContent = failedCount;
+    }
+}
+
+// Afișează istoricul bonurilor
+function showReceiptsHistory(filter = 'all') {
+    const history = getReceiptsHistory(filter);
+    
+    const filterButtons = `
+        <div class="filters mb-3">
+            <button class="filter-btn ${filter === 'all' ? 'active' : ''}" onclick="showReceiptsHistory('all')">
+                📋 Toate <span class="count">${getReceiptsHistory('all').length}</span>
+            </button>
+            <button class="filter-btn ${filter === 'printed' ? 'active' : ''}" onclick="showReceiptsHistory('printed')">
+                ✅ Printate <span class="count">${getReceiptsHistory('printed').length}</span>
+            </button>
+            <button class="filter-btn ${filter === 'failed' ? 'active' : ''}" onclick="showReceiptsHistory('failed')">
+                ❌ Eșuate <span class="count">${getReceiptsHistory('failed').length}</span>
+            </button>
+            <button class="filter-btn ${filter === 'pending' ? 'active' : ''}" onclick="showReceiptsHistory('pending')">
+                ⏳ În așteptare <span class="count">${getReceiptsHistory('pending').length}</span>
+            </button>
+        </div>
+    `;
+    
+    let tableHtml = '';
+    if (history.length === 0) {
+        tableHtml = '<p class="text-center text-muted">Nu există bonuri în istoric.</p>';
+    } else {
+        tableHtml = `
+            <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data/Ora</th>
+                            <th>Produse</th>
+                            <th>Total</th>
+                            <th>Plată</th>
+                            <th>Status</th>
+                            <th>Nr. Fiscal</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map(r => {
+                            const statusBadge = r.status === 'printed' 
+                                ? '<span class="badge badge-success">✅ Printat</span>'
+                                : r.status === 'failed'
+                                    ? '<span class="badge badge-danger">❌ Eșuat</span>'
+                                    : '<span class="badge badge-warning">⏳ În așteptare</span>';
+                            
+                            const fiscalNumber = r.fiscalData?.slipNumber || r.fiscalData?.SlipNumber || '-';
+                            const itemsCount = r.saleData?.items?.length || 0;
+                            const itemsPreview = r.saleData?.items?.slice(0, 2).map(i => i.name).join(', ') || '';
+                            
+                            return `
+                                <tr>
+                                    <td>
+                                        <strong>${new Date(r.timestamp).toLocaleDateString('ro-RO')}</strong><br>
+                                        <small>${new Date(r.timestamp).toLocaleTimeString('ro-RO')}</small>
+                                    </td>
+                                    <td>
+                                        <span title="${itemsPreview}">${itemsCount} produse</span>
+                                        ${r.attempts > 1 ? `<br><small class="text-muted">${r.attempts} încercări</small>` : ''}
+                                    </td>
+                                    <td><strong>${r.saleData?.total?.toFixed(2) || '0.00'} RON</strong></td>
+                                    <td>${r.saleData?.payment_method === 'cash' ? '💵' : '💳'}</td>
+                                    <td>
+                                        ${statusBadge}
+                                        ${r.error ? `<br><small class="text-danger" title="${r.error}">⚠️ ${r.error.substring(0, 20)}...</small>` : ''}
+                                    </td>
+                                    <td>${fiscalNumber}</td>
+                                    <td>
+                                        <button class="btn btn-primary btn-sm" onclick="reprintReceipt(${r.id})" title="Reprintează">
+                                            🖨️
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" onclick="viewReceiptDetails(${r.id})" title="Detalii">
+                                            👁️
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteReceiptFromHistory(${r.id})" title="Șterge">
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    const actionsHtml = `
+        <div class="form-actions mt-3">
+            <button class="btn btn-primary" onclick="reprintAllFailed()">🖨️ Reprintează toate eșuate</button>
+            <button class="btn btn-secondary" onclick="exportReceiptsHistory()">📥 Export CSV</button>
+            <button class="btn btn-danger" onclick="clearReceiptsHistory()">🗑️ Golește istoric</button>
+        </div>
+    `;
+    
+    $('receiptsHistoryContent').innerHTML = filterButtons + tableHtml + actionsHtml;
+    openModal('receiptsHistoryModal');
+}
+
+// Vizualizează detaliile unui bon
+function viewReceiptDetails(id) {
+    const history = getReceiptsHistory();
+    const receipt = history.find(r => r.id === id);
+    
+    if (!receipt) {
+        toast('Bonul nu a fost găsit', 'error');
+        return;
+    }
+    
+    const itemsList = receipt.saleData?.items?.map(item => 
+        `<tr>
+            <td>${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>${item.price?.toFixed(2)} RON</td>
+            <td>${(item.quantity * item.price)?.toFixed(2)} RON</td>
+        </tr>`
+    ).join('') || '';
+    
+    const statusText = receipt.status === 'printed' ? '✅ Printat cu succes' 
+        : receipt.status === 'failed' ? '❌ Printare eșuată' 
+        : '⏳ În așteptare';
+    
+    const html = `
+        <div class="receipt-details">
+            <div class="mb-3">
+                <strong>Data:</strong> ${new Date(receipt.timestamp).toLocaleString('ro-RO')}<br>
+                <strong>Status:</strong> ${statusText}<br>
+                <strong>Metodă plată:</strong> ${receipt.saleData?.payment_method === 'cash' ? '💵 Numerar' : '💳 Card'}<br>
+                <strong>Nr. încercări:</strong> ${receipt.attempts}<br>
+                ${receipt.fiscalData ? `
+                    <strong>Nr. bon fiscal:</strong> ${receipt.fiscalData.slipNumber || receipt.fiscalData.SlipNumber || '-'}<br>
+                    <strong>Nr. raport Z:</strong> ${receipt.fiscalData.zReport || receipt.fiscalData.nZrep || '-'}<br>
+                ` : ''}
+                ${receipt.error ? `<strong class="text-danger">Eroare:</strong> ${receipt.error}<br>` : ''}
+            </div>
+            
+            <table class="mb-3">
+                <thead>
+                    <tr>
+                        <th>Produs</th>
+                        <th>Cant.</th>
+                        <th>Preț</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsList}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3"><strong>TOTAL</strong></td>
+                        <td><strong>${receipt.saleData?.total?.toFixed(2)} RON</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="reprintReceipt(${receipt.id}); closeModal('receiptDetailsModal');">
+                    🖨️ Reprintează
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('receiptDetailsModal')">
+                    Închide
+                </button>
+            </div>
+        </div>
+    `;
+    
+    $('receiptDetailsContent').innerHTML = html;
+    openModal('receiptDetailsModal');
+}
+
+// Reprintează un bon
+async function reprintReceipt(id) {
+    const history = getReceiptsHistory();
+    const receipt = history.find(r => r.id === id);
+    
+    if (!receipt) {
+        toast('Bonul nu a fost găsit', 'error');
+        return;
+    }
+    
+    loading(true);
+    
+    try {
+        const result = await printFiscalReceiptDirect(receipt.saleData);
+        
+        if (result.success && !result.error) {
+            updateReceiptStatus(id, 'printed', result.data);
+            toast('✅ Bon reprintat cu succes!');
+        } else {
+            updateReceiptStatus(id, 'failed', null, result.error);
+            toast('❌ Reprintarea a eșuat: ' + (result.error || 'Eroare'), 'error');
+        }
+        
+        // Reîncarcă lista dacă modalul e deschis
+        if ($('receiptsHistoryModal')?.classList.contains('active')) {
+            showReceiptsHistory();
+        }
+    } catch (e) {
+        updateReceiptStatus(id, 'failed', null, e.message);
+        toast('❌ Eroare: ' + e.message, 'error');
+    }
+    
+    loading(false);
+}
+
+// Reprintează toate bonurile eșuate
+async function reprintAllFailed() {
+    const failed = getReceiptsHistory().filter(r => r.status === 'failed' || r.status === 'pending');
+    
+    if (failed.length === 0) {
+        toast('Nu există bonuri de reprintat', 'info');
+        return;
+    }
+    
+    showConfirm('🖨️ Reprintare multiplă', `Vrei să reprintezi ${failed.length} bonuri eșuate?`, async () => {
+        loading(true);
+        
+        let success = 0;
+        let failedCount = 0;
+        
+        for (const receipt of failed) {
+            try {
+                const result = await printFiscalReceiptDirect(receipt.saleData);
+                if (result.success && !result.error) {
+                    updateReceiptStatus(receipt.id, 'printed', result.data);
+                    success++;
+                } else {
+                    updateReceiptStatus(receipt.id, 'failed', null, result.error);
+                    failedCount++;
+                }
+            } catch (e) {
+                updateReceiptStatus(receipt.id, 'failed', null, e.message);
+                failedCount++;
+            }
+            
+            await new Promise(r => setTimeout(r, 1500));
+        }
+        
+        loading(false);
+        toast(`Finalizat: ${success} reușite, ${failedCount} eșuate`);
+        showReceiptsHistory();
+    });
+}
+
+// Șterge un bon din istoric
+function deleteReceiptFromHistory(id) {
+    showConfirm('🗑️ Ștergere', 'Sigur vrei să ștergi acest bon din istoric?', () => {
+        let history = getReceiptsHistory();
+        history = history.filter(r => r.id !== id);
+        localStorage.setItem('receiptsHistory', JSON.stringify(history));
+        updateReceiptsHistoryCount();
+        toast('Bon șters din istoric');
+        showReceiptsHistory();
+    });
+}
+
+// Golește tot istoricul
+function clearReceiptsHistory() {
+    showConfirm('🗑️ Golire istoric', 'Sigur vrei să ștergi TOT istoricul de bonuri? Această acțiune nu poate fi anulată.', () => {
+        localStorage.setItem('receiptsHistory', '[]');
+        updateReceiptsHistoryCount();
+        toast('Istoricul a fost golit');
+        closeModal('receiptsHistoryModal');
+    });
+}
+
+// Export istoric în CSV
+function exportReceiptsHistory() {
+    const history = getReceiptsHistory();
+    
+    if (history.length === 0) {
+        toast('Nu există bonuri de exportat', 'info');
+        return;
+    }
+    
+    let csv = 'Data,Ora,Total,Plata,Status,Nr Fiscal,Eroare,Produse\n';
+    
+    for (const r of history) {
+        const date = new Date(r.timestamp).toLocaleDateString('ro-RO');
+        const time = new Date(r.timestamp).toLocaleTimeString('ro-RO');
+        const total = r.saleData?.total?.toFixed(2) || '0';
+        const payment = r.saleData?.payment_method || '';
+        const status = r.status;
+        const fiscal = r.fiscalData?.slipNumber || r.fiscalData?.SlipNumber || '';
+        const error = (r.error || '').replace(/,/g, ';');
+        const products = (r.saleData?.items?.map(i => i.name).join('; ') || '').replace(/,/g, ';');
+        
+        csv += `${date},${time},${total},${payment},${status},${fiscal},"${error}","${products}"\n`;
+    }
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `istoric-bonuri-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast('Export realizat!');
+}
+
+// Printare directă (fără salvare în istoric - pentru reprintări)
+async function printFiscalReceiptDirect(saleData) {
+    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
+    
+    if (!settings.enabled) {
+        throw new Error('Casa de marcat nu este activată');
+    }
+    
+    const driver = settings.driver;
+    const port = settings.port;
+    
+    if (driver === 'fisco') {
+        const commands = saleData.items.map(item => {
+            const price = Math.round(item.price * 100);
+            const qty = Math.round(item.quantity * 1000);
+            const name = item.name.substring(0, 30).replace(/\^/g, ' ');
+            return `S^${name}^${price}^${qty}^buc^2^1`;
+        });
+        
+        const totalCents = Math.round(saleData.total * 100);
+        const paymentType = saleData.payment_method === 'card' ? '2' : '1';
+        commands.push(`P^${paymentType}^${totalCents}`);
+        
+        const response = await fetch(`${port}/api/v1/print`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                syntax: 'simplu',
+                version: '1.0',
+                external_id: `reprint-${Date.now()}`,
+                commands
+            }),
+            signal: AbortSignal.timeout(10000)
+        });
+        
+        const result = await response.json();
+        
+        if (!result.ok) {
+            throw new Error(result.error?.message || 'Eroare trimitere bon');
+        }
+        
+        const finalResult = await pollFiscoJobStatus(port, result.job_id);
+        return { success: true, data: finalResult };
+        
+    } else if (driver === 'datecs') {
+        const items = saleData.items.map(item => ({
+            name: item.name.substring(0, 30),
+            price: item.price,
+            quantity: item.quantity,
+            taxGroup: 'B'
+        }));
+        
+        const response = await fetch(`${port}/fiscal/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items,
+                payments: [{
+                    type: saleData.payment_method === 'card' ? 'card' : 'cash',
+                    amount: saleData.total
+                }]
+            }),
+            signal: AbortSignal.timeout(15000)
+        });
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        return { success: true, data: result };
+        
+    } else if (driver === 'tremol') {
+        const response = await fetch(`${port}/api/receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: saleData.items.map(item => ({
+                    text: item.name,
+                    price: item.price,
+                    qty: item.quantity,
+                    taxCode: 2
+                })),
+                payment: {
+                    type: saleData.payment_method === 'card' ? 1 : 0,
+                    amount: saleData.total
+                }
+            }),
+            signal: AbortSignal.timeout(15000)
+        });
+        
+        const result = await response.json();
+        return { success: true, data: result };
+    }
+    
+    throw new Error('Driver necunoscut');
+}
+
+	
 
 	// ================================================
 // SUPABASE CONFIGURATION
@@ -3455,6 +3966,8 @@ async function initApp() {
     
     updateTime();
     setInterval(updateTime, 1000);
+	updateReceiptsHistoryCount();
+
 }
 
 function initTabs() {
@@ -3882,7 +4395,7 @@ async function confirmPay() {
     loading(false);
 }
 
-// Funcție pentru printare bon fiscal
+// Funcție pentru printare bon fiscal (cu salvare în istoric)
 async function printFiscalReceipt(saleData) {
     const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
     
@@ -3890,97 +4403,25 @@ async function printFiscalReceipt(saleData) {
         return { success: true, skipped: true };
     }
     
-    const driver = settings.driver;
-    const port = settings.port;
+    // Salvează bonul în istoric ca "pending"
+    const receipt = saveReceiptToHistory(saleData, 'pending');
     
     try {
-        if (driver === 'fisco') {
-            // Construiește comenzile în sintaxa simplificată
-            const commands = saleData.items.map(item => {
-                const price = Math.round(item.price * 100);
-                const qty = Math.round(item.quantity * 1000);
-                const name = item.name.substring(0, 30).replace(/\^/g, ' ');
-                return `S^${name}^${price}^${qty}^buc^2^1`;
-            });
-            
-            const totalCents = Math.round(saleData.total * 100);
-            const paymentType = saleData.payment_method === 'card' ? '2' : '1';
-            commands.push(`P^${paymentType}^${totalCents}`);
-            
-            // Trimite bonul
-            const response = await fetch(`${port}/api/v1/print`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    syntax: 'simplu',
-                    version: '1.0',
-                    external_id: `bon-${Date.now()}`,
-                    commands
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (!result.ok) {
-                throw new Error(result.error?.message || 'Eroare trimitere bon');
-            }
-            
-            // Verifică statusul jobului (polling)
-            const jobId = result.job_id;
-            const finalResult = await pollFiscoJobStatus(port, jobId);
-            
-            return { success: true, data: finalResult };
-            
-        } else if (driver === 'datecs') {
-            const items = saleData.items.map(item => ({
-                name: item.name.substring(0, 30),
-                price: item.price,
-                quantity: item.quantity,
-                taxGroup: 'B'
-            }));
-            
-            const response = await fetch(`${port}/fiscal/receipt`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    items,
-                    payments: [{
-                        type: saleData.payment_method === 'card' ? 'card' : 'cash',
-                        amount: saleData.total
-                    }]
-                })
-            });
-            
-            const result = await response.json();
-            if (!result.success) throw new Error(result.error);
-            return { success: true, data: result };
-            
-        } else if (driver === 'tremol') {
-            const response = await fetch(`${port}/api/receipt`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    items: saleData.items.map(item => ({
-                        text: item.name,
-                        price: item.price,
-                        qty: item.quantity,
-                        taxCode: 2
-                    })),
-                    payment: {
-                        type: saleData.payment_method === 'card' ? 1 : 0,
-                        amount: saleData.total
-                    }
-                })
-            });
-            
-            const result = await response.json();
-            return { success: true, data: result };
-        }
+        const result = await printFiscalReceiptDirect(saleData);
         
-        throw new Error('Driver necunoscut');
+        if (result.success) {
+            // Marchează ca printat
+            updateReceiptStatus(receipt.id, 'printed', result.data);
+            return { success: true, data: result.data };
+        } else {
+            updateReceiptStatus(receipt.id, 'failed', null, result.error);
+            return { success: false, error: result.error };
+        }
         
     } catch (e) {
         console.error('Eroare printare bon fiscal:', e);
+        updateReceiptStatus(receipt.id, 'failed', null, e.message);
+        toast('⚠️ Bonul a fost salvat în istoric și poate fi reprintat', 'warning');
         return { success: false, error: e.message };
     }
 }
@@ -5482,96 +5923,6 @@ async function sendCashRegisterCommand(command) {
     loading(false);
 }
 
-// Funcție pentru printare bon fiscal
-async function printFiscalReceipt(saleData) {
-    const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
-    
-    if (!settings.enabled || !settings.printReceipt) {
-        return { success: true, skipped: true };
-    }
-    
-    const driver = settings.driver;
-    const port = settings.port;
-    
-    if (driver === 'fisco') {
-        const commands = saleData.items.map(item => {
-            const price = Math.round(item.price * 100);
-            const qty = Math.round(item.quantity * 1000);
-            return `S^${item.name.substring(0, 30)}^${price}^${qty}^buc^2^1`;
-        });
-        
-        const totalCents = Math.round(saleData.total * 100);
-        const paymentType = saleData.payment_method === 'card' ? '2' : '1';
-        commands.push(`P^${paymentType}^${totalCents}`);
-        
-        const response = await fetch(`${port}/api/v1/print`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                syntax: 'simplu',
-                version: '1.0',
-                commands
-            })
-        });
-        
-        const result = await response.json();
-        if (!result.ok) {
-            throw new Error(result.error?.message || 'Eroare printare bon');
-        }
-        return { success: true, data: result };
-        
-    } else if (driver === 'datecs') {
-        const items = saleData.items.map(item => ({
-            name: item.name.substring(0, 30),
-            price: item.price,
-            quantity: item.quantity,
-            taxGroup: 'B'
-        }));
-        
-        const response = await fetch(`${port}/fiscal/receipt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items,
-                payments: [{
-                    type: saleData.payment_method === 'card' ? 'card' : 'cash',
-                    amount: saleData.total
-                }]
-            })
-        });
-        
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        return { success: true, data: result };
-        
-    } else if (driver === 'tremol') {
-        const response = await fetch(`${port}/api/receipt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items: saleData.items.map(item => ({
-                    text: item.name,
-                    price: item.price,
-                    qty: item.quantity,
-                    taxCode: 2
-                })),
-                payment: {
-                    type: saleData.payment_method === 'card' ? 1 : 0,
-                    amount: saleData.total
-                }
-            })
-        });
-        
-        const result = await response.json();
-        return { success: true, data: result };
-    }
-    
-    throw new Error('Driver necunoscut');
-}
-// Import Excel de pe pagina de login
-function importFromExcelLogin() {
-    $('importExcelLoginFile').click();
-}
 
 async function handleExcelImportLogin(event) {
     const file = event.target.files[0];
