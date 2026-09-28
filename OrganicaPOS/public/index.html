@@ -1612,7 +1612,11 @@
     			🧾 Istoric Bonuri
     		<span id="failedReceiptsBadge" class="badge badge-danger" style="display: none; margin-left: 5px;">0</span>
 			</button>
+			<button type="button" class="btn btn-secondary" onclick="showZReportsHistory()">
+			    📊 Istoric Rapoarte Z
+			</button>
 
+			
         </div>
         
         <div id="crStatus" class="cr-status" style="display:none;"></div>
@@ -2220,11 +2224,241 @@
     </div>
 </div>
 
+<!-- Z REPORTS HISTORY MODAL -->
+<div class="modal-overlay" id="zReportsHistoryModal">
+    <div class="modal" style="max-width: 900px;">
+        <div class="modal-header">
+            <h3>📊 Istoric Rapoarte Z</h3>
+            <button class="btn-close" onclick="closeModal('zReportsHistoryModal')">✕</button>
+        </div>
+        <div class="modal-body" id="zReportsHistoryContent">
+            <!-- Conținutul se generează dinamic -->
+        </div>
+    </div>
+</div>
+
+<!-- Z REPORT DETAILS MODAL -->
+<div class="modal-overlay" id="zReportDetailsModal">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>📋 Detalii Raport Z</h3>
+            <button class="btn-close" onclick="closeModal('zReportDetailsModal')">✕</button>
+        </div>
+        <div class="modal-body" id="zReportDetailsContent">
+            <!-- Conținutul se generează dinamic -->
+        </div>
+    </div>
+</div>
 
 	
 
 <script>
 
+
+// ================================================
+// ISTORIC RAPOARTE Z
+// ================================================
+
+// Salvează raport Z în istoric
+function saveZReportToHistory(status, fiscalData = null, error = null) {
+    const history = JSON.parse(localStorage.getItem('zReportsHistory') || '[]');
+    
+    const report = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        status: status, // 'success', 'failed'
+        fiscalData: fiscalData,
+        error: error
+    };
+    
+    history.unshift(report);
+    
+    // Păstrează ultimele 365 rapoarte (1 an)
+    if (history.length > 365) {
+        history.pop();
+    }
+    
+    localStorage.setItem('zReportsHistory', JSON.stringify(history));
+    
+    return report;
+}
+
+// Obține istoricul rapoartelor Z
+function getZReportsHistory() {
+    return JSON.parse(localStorage.getItem('zReportsHistory') || '[]');
+}
+
+// Afișează istoricul rapoartelor Z
+function showZReportsHistory() {
+    const history = getZReportsHistory();
+    
+    let tableHtml = '';
+    if (history.length === 0) {
+        tableHtml = '<p class="text-center text-muted">Nu există rapoarte Z în istoric.</p>';
+    } else {
+        tableHtml = `
+            <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data/Ora</th>
+                            <th>Status</th>
+                            <th>Nr. Raport Z</th>
+                            <th>Nr. Fiscal</th>
+                            <th>Total Zi</th>
+                            <th>Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${history.map(r => {
+                            const statusBadge = r.status === 'success' 
+                                ? '<span class="badge badge-success">✅ Emis</span>'
+                                : '<span class="badge badge-danger">❌ Eșuat</span>';
+                            
+                            const zNumber = r.fiscalData?.nZrep || r.fiscalData?.zReport || r.fiscalData?.ZRepNum || '-';
+                            const fiscalNumber = r.fiscalData?.nFNum || r.fiscalData?.fiscalNumber || '-';
+                            const dailyTotal = r.fiscalData?.dailyTotal || r.fiscalData?.TotalDay || '-';
+                            
+                            return `
+                                <tr>
+                                    <td>
+                                        <strong>${new Date(r.timestamp).toLocaleDateString('ro-RO')}</strong><br>
+                                        <small>${new Date(r.timestamp).toLocaleTimeString('ro-RO')}</small>
+                                    </td>
+                                    <td>
+                                        ${statusBadge}
+                                        ${r.error ? `<br><small class="text-danger">${r.error.substring(0, 30)}...</small>` : ''}
+                                    </td>
+                                    <td><strong>${zNumber}</strong></td>
+                                    <td>${fiscalNumber}</td>
+                                    <td>${dailyTotal !== '-' ? dailyTotal + ' RON' : '-'}</td>
+                                    <td>
+                                        <button class="btn btn-secondary btn-sm" onclick="viewZReportDetails(${r.id})" title="Detalii">
+                                            👁️
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteZReport(${r.id})" title="Șterge">
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    const actionsHtml = `
+        <div class="form-actions mt-3">
+            <button class="btn btn-secondary" onclick="exportZReportsHistory()">📥 Export CSV</button>
+            <button class="btn btn-danger" onclick="clearZReportsHistory()">🗑️ Golește istoric</button>
+        </div>
+    `;
+    
+    $('zReportsHistoryContent').innerHTML = tableHtml + actionsHtml;
+    openModal('zReportsHistoryModal');
+}
+
+// Vizualizează detaliile unui raport Z
+function viewZReportDetails(id) {
+    const history = getZReportsHistory();
+    const report = history.find(r => r.id === id);
+    
+    if (!report) {
+        toast('Raportul nu a fost găsit', 'error');
+        return;
+    }
+    
+    const html = `
+        <div class="report-details">
+            <div class="mb-3">
+                <strong>Data emitere:</strong> ${new Date(report.timestamp).toLocaleString('ro-RO')}<br>
+                <strong>Status:</strong> ${report.status === 'success' ? '✅ Emis cu succes' : '❌ Eșuat'}<br>
+                ${report.fiscalData ? `
+                    <strong>Nr. Raport Z:</strong> ${report.fiscalData.nZrep || report.fiscalData.zReport || report.fiscalData.ZRepNum || '-'}<br>
+                    <strong>Nr. Fiscal:</strong> ${report.fiscalData.nFNum || report.fiscalData.fiscalNumber || '-'}<br>
+                    <strong>Serie dispozitiv:</strong> ${report.fiscalData.DeviceSerial || report.fiscalData.deviceSerial || '-'}<br>
+                    <strong>Total zi:</strong> ${report.fiscalData.dailyTotal || report.fiscalData.TotalDay || '-'} RON<br>
+                    <strong>Numerar:</strong> ${report.fiscalData.cashTotal || report.fiscalData.TotalCash || '-'} RON<br>
+                    <strong>Card:</strong> ${report.fiscalData.cardTotal || report.fiscalData.TotalCard || '-'} RON<br>
+                    <strong>Nr. bonuri:</strong> ${report.fiscalData.receiptsCount || report.fiscalData.SlipCount || '-'}<br>
+                ` : ''}
+                ${report.error ? `<strong class="text-danger">Eroare:</strong> ${report.error}<br>` : ''}
+            </div>
+            
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal('zReportDetailsModal')">
+                    Închide
+                </button>
+            </div>
+        </div>
+    `;
+    
+    $('zReportDetailsContent').innerHTML = html;
+    openModal('zReportDetailsModal');
+}
+
+// Șterge un raport Z din istoric
+function deleteZReport(id) {
+    showConfirm('🗑️ Ștergere', 'Sigur vrei să ștergi acest raport Z din istoric?', () => {
+        let history = getZReportsHistory();
+        history = history.filter(r => r.id !== id);
+        localStorage.setItem('zReportsHistory', JSON.stringify(history));
+        toast('Raport șters din istoric');
+        showZReportsHistory();
+    });
+}
+
+// Golește tot istoricul de rapoarte Z
+function clearZReportsHistory() {
+    showConfirm('🗑️ Golire istoric', 'Sigur vrei să ștergi TOT istoricul de rapoarte Z?', () => {
+        localStorage.setItem('zReportsHistory', '[]');
+        toast('Istoricul a fost golit');
+        closeModal('zReportsHistoryModal');
+    });
+}
+
+// Export rapoarte Z în CSV
+function exportZReportsHistory() {
+    const history = getZReportsHistory();
+    
+    if (history.length === 0) {
+        toast('Nu există rapoarte de exportat', 'info');
+        return;
+    }
+    
+    let csv = 'Data,Ora,Status,Nr Raport Z,Nr Fiscal,Total Zi,Numerar,Card,Nr Bonuri,Eroare\n';
+    
+    for (const r of history) {
+        const date = new Date(r.timestamp).toLocaleDateString('ro-RO');
+        const time = new Date(r.timestamp).toLocaleTimeString('ro-RO');
+        const status = r.status;
+        const zNumber = r.fiscalData?.nZrep || r.fiscalData?.zReport || '';
+        const fiscalNumber = r.fiscalData?.nFNum || '';
+        const dailyTotal = r.fiscalData?.dailyTotal || r.fiscalData?.TotalDay || '';
+        const cashTotal = r.fiscalData?.cashTotal || r.fiscalData?.TotalCash || '';
+        const cardTotal = r.fiscalData?.cardTotal || r.fiscalData?.TotalCard || '';
+        const receiptsCount = r.fiscalData?.receiptsCount || r.fiscalData?.SlipCount || '';
+        const error = (r.error || '').replace(/,/g, ';');
+        
+        csv += `${date},${time},${status},${zNumber},${fiscalNumber},${dailyTotal},${cashTotal},${cardTotal},${receiptsCount},"${error}"\n`;
+    }
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `istoric-rapoarte-z-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast('Export realizat!');
+}
+
+
+
+	
 
 	// ================================================
 // ISTORIC BONURI FISCALE
@@ -4301,7 +4535,13 @@ function selectPay(method) {
     if (method === 'cash') {
         show($('cashCalc'));
         hide($('cardInfo'));
+        
+        // Setează automat suma totală în câmpul Primit
+        const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+        $('cashIn').value = total.toFixed(2);
+        
         $('cashIn').focus();
+        $('cashIn').select(); // Selectează textul pentru editare ușoară
         calcChange();
     } else {
         hide($('cashCalc'));
@@ -4309,6 +4549,7 @@ function selectPay(method) {
         $('confirmPayBtn').disabled = false;
     }
 }
+
 
 function calcChange() {
     const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -4622,7 +4863,6 @@ async function sendCashRegisterCommand(command) {
     
     try {
         if (settings.driver === 'fisco') {
-            // Comenzi corecte conform documentație Fisco
             const cmdMap = {
                 'report_x': 'X^',
                 'report_z': 'Z^'
@@ -4645,9 +4885,14 @@ async function sendCashRegisterCommand(command) {
                 throw new Error(result.error?.message || 'Eroare casă de marcat');
             }
             
-            // Verifică statusul
             const finalResult = await pollFiscoJobStatus(settings.port, result.job_id);
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
+            
+            // Salvează raportul Z în istoric
+            if (command === 'report_z') {
+                saveZReportToHistory('success', finalResult);
+            }
+            
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
             return finalResult;
             
         } else if (settings.driver === 'datecs') {
@@ -4655,19 +4900,35 @@ async function sendCashRegisterCommand(command) {
             const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
             const result = await response.json();
             if (!result.success) throw new Error(result.error);
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
+            
+            if (command === 'report_z') {
+                saveZReportToHistory('success', result.data || result);
+            }
+            
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
             return result;
             
         } else if (settings.driver === 'tremol') {
             const endpoint = command === 'report_x' ? '/api/report/x' : '/api/report/z';
             const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
-            return await response.json();
+            const result = await response.json();
+            
+            if (command === 'report_z') {
+                saveZReportToHistory('success', result);
+            }
+            
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
+            return result;
         }
         
         throw new Error('Driver necunoscut');
         
     } catch (e) {
+        // Salvează și rapoartele Z eșuate
+        if (command === 'report_z') {
+            saveZReportToHistory('failed', null, e.message);
+        }
+        
         toast('Eroare: ' + e.message, 'error');
         throw e;
     } finally {
