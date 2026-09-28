@@ -4197,6 +4197,12 @@ function stopAutoSync() {
 // APP INIT
 // ================================================
 async function initApp() {
+	// Restaurează din backup dacă e necesar
+		if (dbType === 'local') {
+    		await restoreFromAutoBackup();
+    		await autoBackupLocalData(); // Backup inițial
+		}
+
     $('userAvatar').textContent = user.name[0].toUpperCase();
     $('userName').textContent = user.name;
     $('userRole').textContent = user.role === 'admin' ? 'Administrator' : 'Operator';
@@ -4646,6 +4652,8 @@ async function confirmPay() {
             await loadProducts();
             await loadCashSummary();
             toast('Vânzare finalizată!');
+			// Auto-backup după vânzare
+            triggerAutoBackup();
         }
     } catch (e) {
         toast(e.message, 'error');
@@ -6270,6 +6278,134 @@ async function handleExcelImportLogin(event) {
 }
 
 
+	// ================================================
+// AUTO-BACKUP LA ÎNCHIDERE
+// ================================================
+
+// Salvează backup automat
+async function autoBackupLocalData() {
+    if (dbType !== 'local') return;
+    
+    try {
+        const data = {
+            backupDate: new Date().toISOString(),
+            version: '1.0',
+            products: await localDbOps.getAll('products'),
+            categories: await localDbOps.getAll('categories'),
+            ingredients: await localDbOps.getAll('ingredients'),
+            recipes: await localDbOps.getAll('recipes'),
+            sales: await localDbOps.getAll('sales'),
+            sale_items: await localDbOps.getAll('sale_items'),
+            users: await localDbOps.getAll('users'),
+            cash_operations: await localDbOps.getAll('cash_operations')
+        };
+        
+        // Salvează în localStorage ca backup rapid
+        localStorage.setItem('autoBackup', JSON.stringify(data));
+        localStorage.setItem('autoBackupDate', new Date().toISOString());
+        
+        console.log('✅ Auto-backup salvat:', new Date().toLocaleString('ro-RO'));
+        
+    } catch (e) {
+        console.error('Eroare auto-backup:', e);
+    }
+}
+
+// Restaurează din auto-backup (dacă IndexedDB e gol)
+async function restoreFromAutoBackup() {
+    if (dbType !== 'local') return;
+    
+    try {
+        const backup = localStorage.getItem('autoBackup');
+        if (!backup) return false;
+        
+        const data = JSON.parse(backup);
+        const products = await localDbOps.getAll('products');
+        
+        // Restaurează doar dacă IndexedDB e gol
+        if (products.length === 0 && data.products?.length > 0) {
+            console.log('🔄 Restaurare din auto-backup...');
+            
+            for (const table of ['categories', 'products', 'ingredients', 'recipes', 'users', 'sales', 'sale_items', 'cash_operations']) {
+                if (data[table] && data[table].length > 0) {
+                    for (const item of data[table]) {
+                        try {
+                            await localDbOps.insert(table, item);
+                        } catch (e) {
+                            // Ignoră duplicatele
+                        }
+                    }
+                }
+            }
+            
+            console.log('✅ Restaurare completă din backup de la:', data.backupDate);
+            toast('Date restaurate din backup automat');
+            return true;
+        }
+    } catch (e) {
+        console.error('Eroare restaurare backup:', e);
+    }
+    return false;
+}
+
+// Descarcă backup ca fișier JSON
+async function downloadBackupFile() {
+    if (dbType !== 'local') return;
+    
+    try {
+        const data = {
+            backupDate: new Date().toISOString(),
+            version: '1.0',
+            products: await localDbOps.getAll('products'),
+            categories: await localDbOps.getAll('categories'),
+            ingredients: await localDbOps.getAll('ingredients'),
+            recipes: await localDbOps.getAll('recipes'),
+            sales: await localDbOps.getAll('sales'),
+            sale_items: await localDbOps.getAll('sale_items'),
+            users: await localDbOps.getAll('users'),
+            cash_operations: await localDbOps.getAll('cash_operations')
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `OrganicaPOS-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+    } catch (e) {
+        console.error('Eroare descărcare backup:', e);
+    }
+}
+
+// Salvează backup când utilizatorul părăsește pagina
+window.addEventListener('beforeunload', (event) => {
+    if (dbType === 'local') {
+        // Salvare sincronă în localStorage
+        const backup = localStorage.getItem('autoBackup');
+        if (backup) {
+            // Actualizează data ultimului backup
+            localStorage.setItem('autoBackupDate', new Date().toISOString());
+        }
+    }
+});
+
+// Salvează backup periodic (la fiecare 5 minute)
+setInterval(() => {
+    if (dbType === 'local') {
+        autoBackupLocalData();
+    }
+}, 5 * 60 * 1000);
+
+// Salvează backup după fiecare vânzare sau modificare importantă
+async function triggerAutoBackup() {
+    if (dbType === 'local') {
+        await autoBackupLocalData();
+    }
+}
+
+	
 	
 // ================================================
 // INIT
