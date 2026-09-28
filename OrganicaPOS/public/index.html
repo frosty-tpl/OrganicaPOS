@@ -194,6 +194,23 @@
         .badge-cash { background: rgba(34, 197, 94, 0.15); color: var(--success); }
         .badge-status { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
         .badge-time { color: var(--text-muted); font-size: 12px; }
+		.header-badge.badge-cash {
+    		color: #22c55e;
+    		background: rgba(34, 197, 94, 0.1);
+    		border: 1px solid rgba(34, 197, 94, 0.3);
+			}
+
+		.header-badge.badge-card {
+    		color: #3b82f6;
+    		background: rgba(59, 130, 246, 0.1);
+    		border: 1px solid rgba(59, 130, 246, 0.3);
+			}
+
+		.header-badge.badge-total {
+    		color: #9b59b6;
+    		background: rgba(155, 89, 182, 0.1);
+    		border: 1px solid rgba(155, 89, 182, 0.3);
+			}
 
         .header-user {
             display: flex;
@@ -1123,11 +1140,14 @@
                 <span></span>
                 <span>Organica POS v2</span>
             </div>
-            <div class="header-info">
-                <div class="header-badge badge-cash">💰 <span id="headerCash">0.00</span> RON</div>
-                <div class="header-badge badge-status">🟢 Online</div>
-                <div class="badge-time" id="headerTime"></div>
-                <div class="header-user">
+           		<div class="header-info">
+    				<div class="header-badge badge-cash">💵 <span id="headerCashSales">0.00</span> RON</div>
+    				<div class="header-badge badge-card">💳 <span id="headerCardSales">0.00</span> RON</div>
+    				<div class="header-badge badge-total">📊 <span id="headerTotalSales">0.00</span> RON</div>
+    				<div class="header-badge badge-status">🟢 Online</div>
+    				<div class="badge-time" id="headerTime"></div>
+    				<div class="header-user">
+
                     <div class="avatar" id="userAvatar">A</div>
                     <div>
                         <div class="user-name" id="userName">Admin</div>
@@ -4730,10 +4750,10 @@ async function loadCashSummary() {
             const cardSales = parseFloat(d.card_sales || 0);
             const totalSales = cashSales + cardSales;
             
-            // Total vânzări (carduri noi)
-            if ($('totalCashSales')) $('totalCashSales').textContent = fmt(cashSales) + ' RON';
-            if ($('totalCardSales')) $('totalCardSales').textContent = fmt(cardSales) + ' RON';
-            if ($('totalAllSales')) $('totalAllSales').textContent = fmt(totalSales) + ' RON';
+            // Header badges
+            if ($('headerCashSales')) $('headerCashSales').textContent = fmt(cashSales);
+            if ($('headerCardSales')) $('headerCardSales').textContent = fmt(cardSales);
+            if ($('headerTotalSales')) $('headerTotalSales').textContent = fmt(totalSales);
             
             // Sumarul casei (carduri existente)
             if ($('cashOpen')) $('cashOpen').textContent = fmt(d.opening || 0);
@@ -4742,10 +4762,10 @@ async function loadCashSummary() {
             if ($('cashDeposits')) $('cashDeposits').textContent = fmt(d.deposits || 0);
             if ($('cashWithdrawals')) $('cashWithdrawals').textContent = fmt(d.withdrawals || 0);
             if ($('cashCurrent')) $('cashCurrent').textContent = fmt(d.balance || d.current || 0);
-            if ($('headerCash')) $('headerCash').textContent = fmt(d.balance || d.current || 0);
         }
     } catch (e) { console.error('Cash summary error:', e); }
 }
+
 
 
 async function loadCashTx() {
