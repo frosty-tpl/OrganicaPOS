@@ -4708,14 +4708,16 @@ async function loadCashSummary() {
         if (res.success) {
             const d = res.data;
             if ($('cashOpen')) $('cashOpen').textContent = fmt(d.opening || 0);
-            if ($('cashSales')) $('cashSales').textContent = fmt(d.sales || 0);
+            if ($('cashSales')) $('cashSales').textContent = fmt(d.cash_sales || d.sales || 0);
+            if ($('cashCard')) $('cashCard').textContent = fmt(d.card_sales || 0);
             if ($('cashDeposits')) $('cashDeposits').textContent = fmt(d.deposits || 0);
             if ($('cashWithdrawals')) $('cashWithdrawals').textContent = fmt(d.withdrawals || 0);
-            if ($('cashCurrent')) $('cashCurrent').textContent = fmt(d.current || 0);
-            if ($('headerCash')) $('headerCash').textContent = fmt(d.current || 0);
+            if ($('cashCurrent')) $('cashCurrent').textContent = fmt(d.balance || d.current || 0);
+            if ($('headerCash')) $('headerCash').textContent = fmt(d.balance || d.current || 0);
         }
     } catch (e) { console.error('Cash summary error:', e); }
 }
+
 
 async function loadCashTx() {
     try {
