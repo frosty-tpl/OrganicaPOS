@@ -1759,12 +1759,13 @@
 			                    <button type="button" class="discount-btn protocol-btn" onclick="applyProtocol(this)">🎁 Protocol</button>
 			                </div>
 			                <div class="discount-custom mt-2">
-			                    <div style="display: flex; gap: 10px; align-items: center;">
-			                        <span>Valoare:</span>
-			                        <input type="number" class="form-control" id="discountValue" placeholder="0.00" min="0" step="0.01" style="width: 120px;" oninput="applyCustomDiscountValue()">
-			                        <span>RON</span>
-			                    </div>
-			                </div>
+							    <div style="display: flex; gap: 10px; align-items: center;">
+							        <span>Procent:</span>
+							        <input type="number" class="form-control" id="discountPercent" placeholder="0" min="0" max="100" step="1" style="width: 100px;" oninput="applyCustomDiscountPercent()">
+							        <span>%</span>
+							    </div>
+							</div>
+
 			                <div id="discountInfo" class="mt-2" style="display: none;">
 			                    <div style="display: flex; justify-content: space-between; color: var(--danger); font-weight: 600;">
 			                        <span>Discount (<span id="discountPercentDisplay">0</span>%):</span>
@@ -6530,17 +6531,16 @@ function applyProtocol(btn) {
     toast('🎁 Protocol aplicat - 100% discount', 'info');
 }
 
-function applyCustomDiscountValue() {
-    const value = parseFloat($('discountValue').value) || 0;
-    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    
-    currentDiscountValue = Math.min(subtotal, Math.max(0, value));
-    currentDiscount = subtotal > 0 ? (currentDiscountValue / subtotal) * 100 : 0;
+function applyCustomDiscountPercent() {
+    const percent = parseFloat($('discountPercent').value) || 0;
+    currentDiscount = Math.min(100, Math.max(0, percent));
+    currentDiscountValue = 0;
     
     document.querySelectorAll('.discount-btn').forEach(b => b.classList.remove('active'));
     
     updateDiscountDisplay();
 }
+
 
 function updateDiscountDisplay() {
     const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -6610,7 +6610,7 @@ function resetDiscount() {
     currentDiscount = 0;
     currentDiscountValue = 0;
     
-    if ($('discountValue')) $('discountValue').value = '';
+    if ($('discountPercent')) $('discountPercent').value = '';
     if ($('discountInfo')) $('discountInfo').style.display = 'none';
     
     document.querySelectorAll('.discount-btn').forEach(btn => btn.classList.remove('active'));
