@@ -1042,6 +1042,79 @@
     font-size: 12px;
 }
 
+/* Discount buttons */
+.discount-section {
+    padding: 15px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+}
+
+.discount-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.discount-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--border);
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+}
+
+.discount-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: white;
+}
+
+.discount-btn.active {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: white;
+}
+
+.discount-custom {
+    margin-top: 10px;
+}
+
+.discount-btn.protocol-btn {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    border-color: #9b59b6;
+    color: white;
+}
+
+.discount-btn.protocol-btn:hover {
+    background: linear-gradient(135deg, #8e44ad, #7d3c98);
+    border-color: #7d3c98;
+}
+
+.discount-btn.protocol-btn.active {
+    background: linear-gradient(135deg, #7d3c98, #6c3483);
+    border-color: #6c3483;
+}
+
+.discount-btn.protocol-btn {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    border-color: #9b59b6;
+    color: white;
+}
+
+.discount-btn.protocol-btn:hover {
+    background: linear-gradient(135deg, #8e44ad, #7d3c98);
+    border-color: #7d3c98;
+}
+
+.discount-btn.protocol-btn.active {
+    background: linear-gradient(135deg, #7d3c98, #6c3483);
+    border-color: #6c3483;
+}
+		
 		
 		
     </style>
@@ -1698,6 +1771,32 @@
                     <div class="stat-label">Total de plată</div>
                     <div class="stat-value" id="payTotal" style="font-size:32px;">0.00 RON</div>
                 </div>
+					<!-- DISCOUNT -->
+							<div class="discount-section mb-3">
+							    <label style="font-weight: 600; margin-bottom: 10px; display: block;">🏷️ Discount:</label>
+							    <div class="discount-buttons">
+							        <button type="button" class="discount-btn" onclick="applyDiscount(0)">Fără</button>
+							        <button type="button" class="discount-btn" onclick="applyDiscount(25)">25%</button>
+							        <button type="button" class="discount-btn" onclick="applyDiscount(50)">50%</button>
+							        <button type="button" class="discount-btn" onclick="applyDiscount(75)">75%</button>
+							        <button type="button" class="discount-btn" onclick="applyDiscount(100)">100%</button>
+							        <button type="button" class="discount-btn protocol-btn" onclick="applyProtocol()">🎁 Protocol</button>
+							    </div>
+							    <div class="discount-custom mt-2">
+							        <div style="display: flex; gap: 10px; align-items: center;">
+							            <span>Valoare:</span>
+							            <input type="number" class="form-control" id="discountValue" placeholder="RON" min="0" step="0.01" style="width: 120px;" oninput="applyCustomDiscountValue()">
+							            <span>RON</span>
+							        </div>
+							    </div>
+							    <div id="discountInfo" class="mt-2" style="display: none;">
+							        <div style="display: flex; justify-content: space-between; color: var(--danger);">
+							            <span>Discount (<span id="discountPercentDisplay">0</span>%):</span>
+							            <span>-<span id="discountAmount">0.00</span> RON</span>
+							        </div>
+							    </div>
+							</div>
+
 
                 <div class="payment-options">
                     <div class="payment-btn" onclick="selectPay('cash')" id="payCash">
@@ -4538,7 +4637,12 @@ function clearCart() {
 // PAYMENT
 // ================================================
 function openPayment() {
-    if (!cart.length) return;
+    if (!cart.length) return;    
+    // Resetează discountul
+    resetDiscount();
+    
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    $('payTotal').textContent = `${fmt(total)} RON`;
     const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
     $('payTotal').textContent = `${fmt(total)} RON`;
     payMethod = null;
@@ -4560,12 +4664,12 @@ function selectPay(method) {
         show($('cashCalc'));
         hide($('cardInfo'));
         
-        // Setează automat suma totală în câmpul Primit
-        const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+        // Setează automat suma totală (cu discount) în câmpul Primit
+        const total = getDiscountedTotal();
         $('cashIn').value = total.toFixed(2);
         
         $('cashIn').focus();
-        $('cashIn').select(); // Selectează textul pentru editare ușoară
+        $('cashIn').select();
         calcChange();
     } else {
         hide($('cashCalc'));
@@ -4576,21 +4680,20 @@ function selectPay(method) {
 
 
 function calcChange() {
-    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const received = parseFloat($('cashIn').value) || 0;
-    const change = received - total;
+    const total = getDiscountedTotal();
+    const cashIn = parseFloat($('cashIn').value) || 0;
+    const change = cashIn - total;
     
-    const box = $('changeBox');
-    box.classList.toggle('positive', change >= 0);
-    box.classList.toggle('negative', change < 0);
-    box.textContent = change >= 0 ? `Rest: ${fmt(change)} RON` : `Lipsă: ${fmt(Math.abs(change))} RON`;
-    $('confirmPayBtn').disabled = change < 0;
+    $('changeAmount').textContent = `${fmt(Math.max(0, change))} RON`;
+    $('confirmPayBtn').disabled = cashIn < total;
 }
 
 async function confirmPay() {
     if (!payMethod || !cart.length) return;
     
-    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const total = getDiscountedTotal();
+    const discountAmount = subtotal - total;
     const cashIn = payMethod === 'cash' ? (parseFloat($('cashIn').value) || total) : 0;
     const saleNumber = Date.now().toString();
     
@@ -4604,6 +4707,9 @@ async function confirmPay() {
                 items: cart.map(i => ({ product_id: i.id, name: i.name, quantity: i.qty, price: i.price })),
                 payment_method: payMethod,
                 cash_received: cashIn,
+                subtotal: subtotal,
+                discount_percent: currentDiscount,
+                discount_amount: discountAmount,
                 total: total,
                 user_id: user.id,
                 user_name: user.name,
@@ -4620,6 +4726,9 @@ async function confirmPay() {
                 try {
                     await printFiscalReceipt({
                         items: cart.map(i => ({ name: i.name, quantity: i.qty, price: i.price })),
+                        subtotal: subtotal,
+                        discount_percent: currentDiscount,
+                        discount_amount: discountAmount,
                         total: total,
                         payment_method: payMethod,
                         cash_received: cashIn
@@ -4633,26 +4742,32 @@ async function confirmPay() {
             $('receiptContent').innerHTML = `
                 <div class="receipt-header">
                     <div class="logo">
-    					<img src="logo_organica.png" alt="Organica POS" style="height: 36px; vertical-align: middle; margin-right: 10px;">
-    					Organica POS
-						</div>
+                        <img src="logo_organica.png" alt="Organica POS" style="height: 36px; vertical-align: middle; margin-right: 10px;">
+                        Organica POS
+                    </div>
                     <div>${new Date().toLocaleString('ro-RO')}</div>
                     <div>Operator: ${user.name}</div>
                 </div>
                 ${cart.map(i => `<div class="receipt-row"><span>${i.name} × ${i.qty}</span><span>${fmt(i.price * i.qty)}</span></div>`).join('')}
                 <div class="receipt-divider"></div>
+                <div class="receipt-row"><span>Subtotal:</span><span>${fmt(subtotal)} RON</span></div>
+                ${discountAmount > 0 ? `<div class="receipt-row" style="color: var(--danger);"><span>Discount (${currentDiscount.toFixed(1)}%):</span><span>-${fmt(discountAmount)} RON</span></div>` : ''}
                 <div class="receipt-row receipt-total"><span>TOTAL:</span><span>${fmt(total)} RON</span></div>
                 <div class="receipt-row"><span>${payMethod === 'cash' ? 'Numerar' : 'Card'}:</span><span>${fmt(payMethod === 'cash' ? cashIn : total)}</span></div>
                 ${change > 0 ? `<div class="receipt-row"><span>Rest:</span><span>${fmt(change)}</span></div>` : ''}
             `;
             openModal('receiptModal');
             
+            // Resetează discountul
+            resetDiscount();
+            
             cart = [];
             renderCart();
             await loadProducts();
             await loadCashSummary();
             toast('Vânzare finalizată!');
-			// Auto-backup după vânzare
+            
+            // Auto-backup după vânzare
             triggerAutoBackup();
         }
     } catch (e) {
@@ -4661,6 +4776,7 @@ async function confirmPay() {
     
     loading(false);
 }
+
 
 // Funcție pentru printare bon fiscal (cu salvare în istoric)
 async function printFiscalReceipt(saleData) {
@@ -6403,6 +6519,161 @@ async function triggerAutoBackup() {
     if (dbType === 'local') {
         await autoBackupLocalData();
     }
+}
+
+// ================================================
+// DISCOUNT
+// ================================================
+
+let currentDiscount = 0; // Procentul de discount
+let currentDiscountValue = 0; // Valoarea absolută a discountului
+
+function applyDiscount(percent) {
+    currentDiscount = percent;
+    currentDiscountValue = 0;
+    
+    // Resetează inputurile
+    if ($('discountPercent')) $('discountPercent').value = percent > 0 ? percent : '';
+    if ($('discountValue')) $('discountValue').value = '';
+    
+    // Actualizează butoanele active
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    updateDiscountDisplay();
+}
+
+function applyCustomDiscount() {
+    const percent = parseFloat($('discountPercent').value) || 0;
+    currentDiscount = Math.min(100, Math.max(0, percent));
+    currentDiscountValue = 0;
+    
+    // Resetează valoarea absolută
+    if ($('discountValue')) $('discountValue').value = '';
+    
+    // Dezactivează butoanele preset
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    updateDiscountDisplay();
+}
+
+function applyCustomDiscountValue() {
+    const value = parseFloat($('discountValue').value) || 0;
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    
+    currentDiscountValue = Math.min(subtotal, Math.max(0, value));
+    currentDiscount = subtotal > 0 ? (currentDiscountValue / subtotal) * 100 : 0;
+    
+    // Resetează procentul
+    if ($('discountPercent')) $('discountPercent').value = '';
+    
+    // Dezactivează butoanele preset
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    updateDiscountDisplay();
+}
+
+function updateDiscountDisplay() {
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    let discountAmount = 0;
+    
+    if (currentDiscountValue > 0) {
+        discountAmount = currentDiscountValue;
+    } else if (currentDiscount > 0) {
+        discountAmount = subtotal * (currentDiscount / 100);
+    }
+    
+    const total = subtotal - discountAmount;
+    
+    // Afișează informațiile despre discount
+    if ($('discountInfo')) {
+        $('discountInfo').style.display = discountAmount > 0 ? 'block' : 'none';
+    }
+    if ($('discountPercentDisplay')) {
+        $('discountPercentDisplay').textContent = currentDiscount.toFixed(1);
+    }
+    if ($('discountAmount')) {
+        $('discountAmount').textContent = fmt(discountAmount);
+    }
+    
+    // Actualizează totalul afișat
+    if ($('payTotal')) {
+        $('payTotal').innerHTML = discountAmount > 0 
+            ? `<span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.8em;">${fmt(subtotal)} RON</span><br>${fmt(total)} RON`
+            : `${fmt(total)} RON`;
+    }
+    
+    // Recalculează restul dacă e selectat cash
+    if (payMethod === 'cash') {
+        calcChange();
+    }
+}
+
+function getDiscountedTotal() {
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    let discountAmount = 0;
+    
+    if (currentDiscountValue > 0) {
+        discountAmount = currentDiscountValue;
+    } else if (currentDiscount > 0) {
+        discountAmount = subtotal * (currentDiscount / 100);
+    }
+    
+    return subtotal - discountAmount;
+}
+
+function resetDiscount() {
+    currentDiscount = 0;
+    currentDiscountValue = 0;
+    
+    if ($('discountPercent')) $('discountPercent').value = '';
+    if ($('discountValue')) $('discountValue').value = '';
+    if ($('discountInfo')) $('discountInfo').style.display = 'none';
+    
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+}
+function applyProtocol() {
+    currentDiscount = 100;
+    currentDiscountValue = 0;
+    
+    // Resetează inputurile
+    if ($('discountValue')) $('discountValue').value = '';
+    
+    // Actualizează butoanele active
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    updateDiscountDisplay();
+    
+    toast('🎁 Protocol aplicat - 100% discount', 'info');
+}
+
+function applyProtocol() {
+    currentDiscount = 100;
+    currentDiscountValue = 0;
+    
+    // Resetează inputurile
+    if ($('discountValue')) $('discountValue').value = '';
+    
+    // Actualizează butoanele active
+    document.querySelectorAll('.discount-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    updateDiscountDisplay();
+    
+    toast('🎁 Protocol aplicat - 100% discount', 'info');
 }
 
 	
