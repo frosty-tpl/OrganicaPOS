@@ -4488,6 +4488,7 @@ function openProduct(id = null) {
 }
 
 function deleteProduct(id) {
+	 id = String(id); // Convertește la string pentru siguranță
     if (!user || user.role !== 'admin') {
         toast('⛔ Doar administratorii pot șterge produse!', 'error');
         return;
