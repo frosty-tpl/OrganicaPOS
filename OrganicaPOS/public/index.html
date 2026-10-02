@@ -6427,9 +6427,16 @@ async function autoBackupLocalData() {
             cash_operations: await localDbOps.getAll('cash_operations')
         };
         
-        // Salvează în localStorage ca backup rapid
+        // Salvează în localStorage ca backup rapid (JSON)
         localStorage.setItem('autoBackup', JSON.stringify(data));
         localStorage.setItem('autoBackupDate', new Date().toISOString());
+        
+        // Dacă suntem în Electron, salvează și pe disc (JSON + Excel)
+        if (typeof require !== 'undefined') {
+            const { ipcRenderer } = require('electron');
+            ipcRenderer.send('save-backup', data);
+            ipcRenderer.send('save-excel-backup', data);
+        }
         
         console.log('✅ Auto-backup salvat:', new Date().toLocaleString('ro-RO'));
         
@@ -6437,6 +6444,7 @@ async function autoBackupLocalData() {
         console.error('Eroare auto-backup:', e);
     }
 }
+
 
 // Restaurează din auto-backup (dacă IndexedDB e gol)
 async function restoreFromAutoBackup() {
