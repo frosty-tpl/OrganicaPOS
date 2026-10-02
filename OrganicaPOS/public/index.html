@@ -1623,19 +1623,27 @@
         
         <div class="form-row">
             <div class="form-group">
-                <label>Driver / Protocol</label>
-                <select id="crDriver" onchange="updateCRPort()">
-                    <option value="fisco">Fisco HTTP API</option>
-                    <option value="datecs">Datecs Direct</option>
-                    <option value="tremol">Tremol SDK</option>
-                    <option value="serial">Port Serial (COM)</option>
-                    <option value="usb">USB Direct</option>
-                </select>
+               <label>Driver / Protocol</label>
+					<select id="crDriver" onchange="updateCRPort()">
+					    <option value="fisco-http">Fisco HTTP API</option>
+					    <option value="fisco-file">Fisco Fișier</option>
+					    <option value="datecs">Datecs Direct</option>
+					    <option value="tremol">Tremol SDK</option>
+					    <option value="serial">Port Serial (COM)</option>
+					    <option value="usb">USB Direct</option>
+					</select>
+
             </div>
-            <div class="form-group">
-                <label>Port / Adresă API</label>
-                <input type="text" id="crPort" placeholder="ex: http://127.0.0.1:4040 sau COM3">
-            </div>
+            <div class="form-group" id="crPortGroup">
+			    <label>Port / Adresă API</label>
+			    <input type="text" id="crPort" placeholder="ex: http://127.0.0.1:4040 sau COM3">
+			</div>
+			<div class="form-group" id="crFileDirGroup" style="display: none;">
+			    <label>Folder Bonuri</label>
+			    <input type="text" id="crFileDir" placeholder="ex: C:\Fisco\Bonuri">
+			    <small style="color: var(--text-muted);">Folderul unde driverul Fisco monitorizează fișierele</small>
+			</div>
+
         </div>
         
         <div class="form-divider"></div>
@@ -2936,98 +2944,83 @@ function exportReceiptsHistory() {
 }
 
 // Printare directă (fără salvare în istoric - pentru reprintări)
-async function printFiscalReceiptDirect(saleData) {
+async function printTestReceipt() {
     const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
     
     if (!settings.enabled) {
-        throw new Error('Casa de marcat nu este activată');
+        toast('Casa de marcat nu este activată', 'error');
+        return;
     }
     
-    const driver = settings.driver;
-    const port = settings.port;
+    showCRStatus('info', '⏳ Se emite bonul de test...');
+    loading(true);
     
-    if (driver === 'fisco') {
-        const commands = saleData.items.map(item => {
-            const price = Math.round(item.price * 100);
-            const qty = Math.round(item.quantity * 1000);
-            const name = item.name.substring(0, 30).replace(/\^/g, ' ');
-            return `S^${name}^${price}^${qty}^buc^2^1`;
-        });
+    try {
+        const driver = settings.driver;
+        const port = settings.port;
+        const fileDir = settings.fileDir;
         
-        const totalCents = Math.round(saleData.total * 100);
-        const paymentType = saleData.payment_method === 'card' ? '2' : '1';
-        commands.push(`P^${paymentType}^${totalCents}`);
-        
-        const response = await fetch(`${port}/api/v1/print`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                syntax: 'simplu',
-                version: '1.0',
-                external_id: `reprint-${Date.now()}`,
-                commands
-            }),
-            signal: AbortSignal.timeout(10000)
-        });
-        
-        const result = await response.json();
-        
-        if (!result.ok) {
-            throw new Error(result.error?.message || 'Eroare trimitere bon');
+        if (driver === 'fisco-http') {
+            const commands = [
+                'S^Produs Test 1^1000^1000^buc^2^1',
+                'S^Produs Test 2^500^2000^buc^2^1',
+                'P^1^2000'
+            ];
+            
+            const response = await fetch(`${port}/api/v1/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    syntax: 'simplu',
+                    version: '1.0',
+                    external_id: `test-${Date.now()}`,
+                    commands
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok) {
+                const finalResult = await pollFiscoJobStatus(port, result.job_id);
+                showCRStatus('success', `✅ Bon test emis (HTTP)!<br>Nr: ${finalResult.slipNumber || 'N/A'}`);
+                toast('Bon test emis cu succes!');
+            } else {
+                throw new Error(result.error?.message || 'Eroare');
+            }
+            
+        } else if (driver === 'fisco-file') {
+            if (typeof require === 'undefined') {
+                throw new Error('Modul Fișier funcționează doar în aplicația desktop');
+            }
+            
+            const fs = require('fs');
+            const path = require('path');
+            
+            fs.mkdirSync(fileDir, { recursive: true });
+            
+            const lines = [
+                'S^Produs Test 1^1000^1000^buc^2^1',
+                'S^Produs Test 2^500^2000^buc^2^1',
+                'P^1^2000'
+            ];
+            
+            const filename = `test_${Date.now()}.txt`;
+            const filepath = path.join(fileDir, filename);
+            fs.writeFileSync(filepath, lines.join('\n'), 'utf8');
+            
+            showCRStatus('success', `✅ Bon test scris în fișier!<br>Fișier: ${filename}`);
+            toast('Bon test scris în folder!');
+            
+        } else {
+            throw new Error('Funcția de test este disponibilă doar pentru Fisco');
         }
         
-        const finalResult = await pollFiscoJobStatus(port, result.job_id);
-        return { success: true, data: finalResult };
-        
-    } else if (driver === 'datecs') {
-        const items = saleData.items.map(item => ({
-            name: item.name.substring(0, 30),
-            price: item.price,
-            quantity: item.quantity,
-            taxGroup: 'B'
-        }));
-        
-        const response = await fetch(`${port}/fiscal/receipt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items,
-                payments: [{
-                    type: saleData.payment_method === 'card' ? 'card' : 'cash',
-                    amount: saleData.total
-                }]
-            }),
-            signal: AbortSignal.timeout(15000)
-        });
-        
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        return { success: true, data: result };
-        
-    } else if (driver === 'tremol') {
-        const response = await fetch(`${port}/api/receipt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                items: saleData.items.map(item => ({
-                    text: item.name,
-                    price: item.price,
-                    qty: item.quantity,
-                    taxCode: 2
-                })),
-                payment: {
-                    type: saleData.payment_method === 'card' ? 1 : 0,
-                    amount: saleData.total
-                }
-            }),
-            signal: AbortSignal.timeout(15000)
-        });
-        
-        const result = await response.json();
-        return { success: true, data: result };
+    } catch (e) {
+        showCRStatus('error', `❌ Eroare: ${e.message}`);
+        toast('Eroare: ' + e.message, 'error');
     }
     
-    throw new Error('Driver necunoscut');
+    loading(false);
 }
 
 	
@@ -4986,21 +4979,25 @@ async function genZReport() {
 async function sendCashRegisterCommand(command) {
     const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
     
-    if (!settings.enabled || !settings.port) {
-        toast('Casa de marcat nu este configurată sau activată', 'error');
+    if (!settings.enabled) {
+        toast('Casa de marcat nu este activată', 'error');
         return;
     }
     
     loading(true);
     
     try {
-        if (settings.driver === 'fisco') {
+        const driver = settings.driver;
+        const port = settings.port;
+        const fileDir = settings.fileDir;
+        
+        if (driver === 'fisco-http') {
             const cmdMap = {
                 'report_x': 'X^',
                 'report_z': 'Z^'
             };
             
-            const response = await fetch(`${settings.port}/api/v1/print`, {
+            const response = await fetch(`${port}/api/v1/print`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -5014,58 +5011,60 @@ async function sendCashRegisterCommand(command) {
             const result = await response.json();
             
             if (!result.ok) {
-                throw new Error(result.error?.message || 'Eroare casă de marcat');
+                throw new Error(result.error?.message || 'Eroare');
             }
             
-            const finalResult = await pollFiscoJobStatus(settings.port, result.job_id);
+            const finalResult = await pollFiscoJobStatus(port, result.job_id);
             
-            // Salvează raportul Z în istoric
             if (command === 'report_z') {
                 saveZReportToHistory('success', finalResult);
             }
             
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
-            return finalResult;
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
             
-        } else if (settings.driver === 'datecs') {
+        } else if (driver === 'fisco-file') {
+            if (typeof require === 'undefined') {
+                throw new Error('Modul Fișier funcționează doar în aplicația desktop');
+            }
+            
+            const fs = require('fs');
+            const path = require('path');
+            
+            fs.mkdirSync(fileDir, { recursive: true });
+            
+            const cmdMap = {
+                'report_x': 'X^',
+                'report_z': 'Z^'
+            };
+            
+            const filename = `${command}_${Date.now()}.txt`;
+            const filepath = path.join(fileDir, filename);
+            fs.writeFileSync(filepath, cmdMap[command], 'utf8');
+            
+            if (command === 'report_z') {
+                saveZReportToHistory('success', { mode: 'file', file: filepath });
+            }
+            
+            toast(command === 'report_x' ? 'Raport X scris!' : 'Raport Z scris!');
+            
+        } else if (driver === 'datecs') {
             const endpoint = command === 'report_x' ? '/fiscal/report/x' : '/fiscal/report/z';
-            const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
+            const response = await fetch(`${port}${endpoint}`, { method: 'POST' });
             const result = await response.json();
             if (!result.success) throw new Error(result.error);
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
             
-            if (command === 'report_z') {
-                saveZReportToHistory('success', result.data || result);
-            }
-            
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
-            return result;
-            
-        } else if (settings.driver === 'tremol') {
+        } else if (driver === 'tremol') {
             const endpoint = command === 'report_x' ? '/api/report/x' : '/api/report/z';
-            const response = await fetch(`${settings.port}${endpoint}`, { method: 'POST' });
-            const result = await response.json();
-            
-            if (command === 'report_z') {
-                saveZReportToHistory('success', result);
-            }
-            
-            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis și salvat în istoric!');
-            return result;
+            await fetch(`${port}${endpoint}`, { method: 'POST' });
+            toast(command === 'report_x' ? 'Raport X emis!' : 'Raport Z emis!');
         }
-        
-        throw new Error('Driver necunoscut');
         
     } catch (e) {
-        // Salvează și rapoartele Z eșuate
-        if (command === 'report_z') {
-            saveZReportToHistory('failed', null, e.message);
-        }
-        
         toast('Eroare: ' + e.message, 'error');
-        throw e;
-    } finally {
-        loading(false);
     }
+    
+    loading(false);
 }
 
 
@@ -6141,41 +6140,61 @@ function updateCRDriver() {
 
 function updateCRPort() {
     const driver = $('crDriver').value;
-    $('crPort').value = defaultPorts[driver] || '';
+    
+    // Arată/ascunde câmpurile în funcție de driver
+    if (driver === 'fisco-file') {
+        if ($('crPortGroup')) $('crPortGroup').style.display = 'none';
+        if ($('crFileDirGroup')) $('crFileDirGroup').style.display = 'block';
+    } else {
+        if ($('crPortGroup')) $('crPortGroup').style.display = 'block';
+        if ($('crFileDirGroup')) $('crFileDirGroup').style.display = 'none';
+    }
+    
+    // Setează port-ul implicit
+    const portMap = {
+        'fisco-http': 'http://127.0.0.1:4040',
+        'fisco-file': '',
+        'datecs': 'http://127.0.0.1:3999',
+        'tremol': 'http://127.0.0.1:8080',
+        'serial': 'COM3',
+        'usb': ''
+    };
+    
+    if (portMap[driver] !== undefined) {
+        $('crPort').value = portMap[driver];
+    }
 }
+
 
 function loadCRSettings() {
     const settings = JSON.parse(localStorage.getItem('crSettings') || '{}');
     
-    if (settings.brand) {
-        $('crBrand').value = settings.brand;
-        updateCRModels();
-        if (settings.model) $('crModel').value = settings.model;
-    }
-    
-    if (settings.driver) $('crDriver').value = settings.driver;
-    if (settings.port) $('crPort').value = settings.port;
-    
-    $('crEnabled').checked = settings.enabled || false;
-    $('crPrintReceipt').checked = settings.printReceipt !== false;
+    if ($('crEnabled')) $('crEnabled').checked = settings.enabled || false;
+    if ($('crDriver')) $('crDriver').value = settings.driver || 'fisco-http';
+    if ($('crPort')) $('crPort').value = settings.port || 'http://127.0.0.1:4040';
+    if ($('crFileDir')) $('crFileDir').value = settings.fileDir || '';
+    if ($('crPrintReceipt')) $('crPrintReceipt').checked = settings.printReceipt !== false;
     if ($('crAutoReportX')) $('crAutoReportX').checked = settings.autoReportX || false;
+    
+    // Actualizează vizibilitatea câmpurilor
+    updateCRPort();
 }
+
 
 function saveCRSettings() {
     const settings = {
-        brand: $('crBrand').value,
-        model: $('crModel').value,
-        driver: $('crDriver').value,
-        port: $('crPort').value,
-        enabled: $('crEnabled').checked,
-        printReceipt: $('crPrintReceipt').checked,
+        enabled: $('crEnabled')?.checked || false,
+        driver: $('crDriver')?.value || 'fisco-http',
+        port: $('crPort')?.value || '',
+        fileDir: $('crFileDir')?.value || '',
+        printReceipt: $('crPrintReceipt')?.checked !== false,
         autoReportX: $('crAutoReportX')?.checked || false
     };
     
     localStorage.setItem('crSettings', JSON.stringify(settings));
-    showCRStatus('success', '✅ Setările au fost salvate!');
     toast('Setări casă de marcat salvate!');
 }
+
 
 function showCRStatus(type, message) {
     const statusDiv = $('crStatus');
@@ -6193,17 +6212,17 @@ function showCRStatus(type, message) {
 async function testCashRegister() {
     const driver = $('crDriver').value;
     const port = $('crPort').value;
-    
-    if (!port) {
-        showCRStatus('error', '❌ Introdu adresa/portul casei de marcat');
-        return;
-    }
+    const fileDir = $('crFileDir').value;
     
     showCRStatus('info', '⏳ Se testează conexiunea...');
     
     try {
-        if (driver === 'fisco') {
-            // Fisco - endpoint corect conform documentație oficială
+        if (driver === 'fisco-http') {
+            if (!port) {
+                showCRStatus('error', '❌ Introdu adresa/portul');
+                return;
+            }
+            
             const response = await fetch(`${port}/api/v1/health`, {
                 method: 'GET',
                 signal: AbortSignal.timeout(5000)
@@ -6212,16 +6231,37 @@ async function testCashRegister() {
             const result = await response.json();
             
             if (result.ok && result.printer?.ready) {
-                showCRStatus('success', `✅ <strong>Conexiune reușită!</strong><br>
+                showCRStatus('success', `✅ <strong>Conectat Fisco HTTP!</strong><br>
                     Imprimantă: pregătită<br>
                     Serial: ${result.printer?.serial || 'N/A'}`);
-            } else if (result.ok && !result.printer?.ready) {
-                showCRStatus('error', `⚠️ <strong>Driver conectat, dar imprimanta nu e pregătită:</strong><br>
-                    ${result.printer?.error || 'Verifică conexiunea imprimantei'}`);
+            } else if (result.ok) {
+                showCRStatus('error', `⚠️ Driver conectat, dar imprimanta nu e pregătită`);
             } else {
                 throw new Error('Răspuns neașteptat');
             }
-            return;
+            
+        } else if (driver === 'fisco-file') {
+            if (!fileDir) {
+                showCRStatus('error', '❌ Introdu folderul pentru bonuri');
+                return;
+            }
+            
+            if (typeof require === 'undefined') {
+                showCRStatus('error', '❌ Modul Fișier funcționează doar în aplicația desktop');
+                return;
+            }
+            
+            const fs = require('fs');
+            const path = require('path');
+            
+            fs.mkdirSync(fileDir, { recursive: true });
+            const testFile = path.join(fileDir, `test_${Date.now()}.txt`);
+            fs.writeFileSync(testFile, 'TEST', 'utf8');
+            fs.unlinkSync(testFile);
+            
+            showCRStatus('success', `✅ <strong>Folder accesibil!</strong><br>
+                Cale: ${fileDir}<br>
+                Mod: Fișier`);
             
         } else if (driver === 'datecs') {
             const response = await fetch(`${port}/status`, {
@@ -6229,9 +6269,8 @@ async function testCashRegister() {
                 signal: AbortSignal.timeout(5000)
             });
             if (response.ok) {
-                showCRStatus('success', '✅ <strong>Conexiune reușită!</strong> Datecs conectat.');
+                showCRStatus('success', '✅ Conectat Datecs!');
             }
-            return;
             
         } else if (driver === 'tremol') {
             const response = await fetch(`${port}/api/status`, {
@@ -6239,25 +6278,20 @@ async function testCashRegister() {
                 signal: AbortSignal.timeout(5000)
             });
             if (response.ok) {
-                showCRStatus('success', '✅ <strong>Conexiune reușită!</strong> Tremol conectat.');
+                showCRStatus('success', '✅ Conectat Tremol!');
             }
-            return;
             
         } else {
-            showCRStatus('error', '❌ Pentru Serial/USB, testarea necesită aplicația desktop.');
-            return;
+            showCRStatus('error', '❌ Driver necunoscut sau nesuportat pentru test');
         }
         
     } catch (e) {
         if (e.name === 'AbortError' || e.message.includes('timeout')) {
-            showCRStatus('error', `❌ <strong>Timeout!</strong> Nu răspunde la ${port}`);
+            showCRStatus('error', `❌ Timeout - nu răspunde`);
         } else if (e.message.includes('Failed to fetch')) {
-            showCRStatus('error', `❌ <strong>Eroare conexiune!</strong><br>
-                Nu se poate conecta la ${port}.<br>
-                <small>• Verifică că driverul este pornit<br>
-                • Din browser extern nu poți accesa localhost</small>`);
+            showCRStatus('error', `❌ Nu se poate conecta. Verifică că driverul e pornit.`);
         } else {
-            showCRStatus('error', `❌ <strong>Eroare:</strong> ${e.message}`);
+            showCRStatus('error', `❌ Eroare: ${e.message}`);
         }
     }
 }
