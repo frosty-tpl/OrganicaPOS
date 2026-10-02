@@ -1373,9 +1373,13 @@
 <div class="tab-content" id="tab-products">
     <div class="card">
         <div class="card-header">
-            <h3>🏷️ Gestionare Produse</h3>
-            <button class="btn btn-primary btn-sm admin-only" onclick="openProduct()">+ Adaugă Produs</button>
-        </div>
+    <h3>🏷️ Gestionare Produse</h3>
+    	<div style="display: flex; gap: 10px;">
+        	<button class="btn btn-info btn-sm" onclick="recalculateComplexProducts()">🔄 Recalculează Stoc</button>
+        	<button class="btn btn-primary btn-sm admin-only" onclick="openProduct()">+ Adaugă Produs</button>
+    	</div>
+	</div>
+
         <div class="card-body">
             <div class="table-wrap">
                 <table>
@@ -4285,6 +4289,9 @@ async function initApp() {
     
     await loadCategories();
     await loadProducts();
+	// Actualizează stocul produselor complexe
+    await loadIngredients();
+    await updateAllComplexProducts();
     await loadCashSummary();
     
     const today = new Date().toISOString().split('T')[0];
@@ -4737,6 +4744,12 @@ async function confirmPay() {
             renderCart();
             await loadProducts();
             await loadCashSummary();
+			// Scade ingredientele pentru produsele complexe
+				await deductIngredientsFromSale(cart.map(i => ({ 
+				    product_id: i.id, 
+				    quantity: i.qty 
+				})));
+
             toast('Vânzare finalizată!');
             // Auto-backup după vânzare
             triggerAutoBackup();
@@ -5740,6 +5753,11 @@ $('ingredientForm').onsubmit = async e => {
             closeModal('ingredientModal');
             toast(id ? 'Ingredient actualizat!' : 'Ingredient adăugat!');
             await loadIngredientsTable();
+			// Recalculează produsele complexe după modificarea ingredientelor
+			await updateAllComplexProducts();
+			await loadProducts();
+			await loadProdTable();
+
         }
     } catch (e) {
         toast(e.message, 'error');
@@ -5777,7 +5795,13 @@ $('supplyForm').onsubmit = async e => {
         if (res.success) {
             closeModal('supplyModal');
             toast('Stoc actualizat!');
+            await loadIngredients();
             await loadIngredientsTable();
+            
+            // Recalculează produsele complexe după aprovizionare
+            await updateAllComplexProducts();
+            await loadProducts();
+            await loadProdTable();
         }
     } catch (e) {
         toast(e.message, 'error');
@@ -5785,6 +5809,7 @@ $('supplyForm').onsubmit = async e => {
     
     loading(false);
 };
+
 
 async function deleteIngredient(id) {
     const ing = ingredients.find(x => x.id === id);
@@ -5966,38 +5991,12 @@ async function saveRecipe() {
         });
         
         if (res.success) {
-            // Calculează costul total din ingrediente
-            let totalCost = 0;
-            for (const item of currentRecipe) {
-                const ingredient = ingredients.find(i => i.id === item.ingredient_id);
-                if (ingredient) {
-                    const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
-                    const quantity = parseFloat(item.quantity) || 0;
-                    totalCost += costPerUnit * quantity;
-                }
-            }
-            
-            // Actualizează costul produsului
-            const product = products.find(p => p.id === parseInt(productId));
-            if (product) {
-                await api('products?action=update', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        id: parseInt(productId),
-                        name: product.name,
-                        category_id: product.category_id,
-                        icon: product.icon,
-                        price: product.price,
-                        cost: totalCost,
-                        stock: product.stock,
-                        min_stock: product.min_stock,
-                        product_type: 'complex'
-                    })
-                });
-            }
+            // Calculează costul și stocul automat
+            await loadIngredients(); // Asigură-te că avem ingredientele actualizate
+            await updateComplexProductStockAndCost(parseInt(productId));
             
             closeModal('recipeModal');
-            toast(`Rețeta salvată! Cost calculat: ${totalCost.toFixed(2)} RON`);
+            toast('Rețeta a fost salvată! Cost și stoc actualizate automat.');
             await loadProducts();
             await loadProdTable();
         }
@@ -6660,6 +6659,173 @@ function resetDiscount() {
     const firstBtn = document.querySelector('.discount-btn');
     if (firstBtn) firstBtn.classList.add('active');
 }
+
+	// ================================================
+// CALCUL AUTOMAT STOC ȘI COST PENTRU PRODUSE COMPLEXE
+// ================================================
+
+// Calculează stocul disponibil pentru un produs complex bazat pe ingrediente
+async function calculateComplexProductStock(productId) {
+    try {
+        // Obține rețeta produsului
+        const recipeRes = await api(`recipes?action=get&product_id=${productId}`);
+        if (!recipeRes.success || !recipeRes.data || recipeRes.data.length === 0) {
+            return null; // Nu are rețetă
+        }
+        
+        const recipe = recipeRes.data;
+        let minStock = Infinity;
+        
+        for (const item of recipe) {
+            const ingredient = ingredients.find(i => i.id === item.ingredient_id);
+            if (!ingredient) continue;
+            
+            const ingredientStock = parseFloat(ingredient.stock) || 0;
+            const requiredQty = parseFloat(item.quantity) || 0;
+            
+            if (requiredQty > 0) {
+                // Câte produse se pot face din acest ingredient
+                const possibleProducts = Math.floor(ingredientStock / requiredQty);
+                minStock = Math.min(minStock, possibleProducts);
+            }
+        }
+        
+        return minStock === Infinity ? 0 : minStock;
+    } catch (e) {
+        console.error('Eroare calcul stoc complex:', e);
+        return 0;
+    }
+}
+
+// Calculează costul de achiziție pentru un produs complex bazat pe ingrediente
+async function calculateComplexProductCost(productId) {
+    try {
+        // Obține rețeta produsului
+        const recipeRes = await api(`recipes?action=get&product_id=${productId}`);
+        if (!recipeRes.success || !recipeRes.data || recipeRes.data.length === 0) {
+            return 0;
+        }
+        
+        const recipe = recipeRes.data;
+        let totalCost = 0;
+        
+        for (const item of recipe) {
+            const ingredient = ingredients.find(i => i.id === item.ingredient_id);
+            if (!ingredient) continue;
+            
+            const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
+            const quantity = parseFloat(item.quantity) || 0;
+            
+            totalCost += costPerUnit * quantity;
+        }
+        
+        return totalCost;
+    } catch (e) {
+        console.error('Eroare calcul cost complex:', e);
+        return 0;
+    }
+}
+
+// Actualizează stocul și costul pentru un produs complex
+async function updateComplexProductStockAndCost(productId) {
+    const product = products.find(p => p.id === productId || p.id === String(productId));
+    if (!product || product.product_type !== 'complex') return;
+    
+    const newStock = await calculateComplexProductStock(productId);
+    const newCost = await calculateComplexProductCost(productId);
+    
+    if (newStock !== null) {
+        // Actualizează produsul în baza de date
+        await api('products?action=update', {
+            method: 'POST',
+            body: JSON.stringify({
+                id: productId,
+                name: product.name,
+                category_id: product.category_id,
+                icon: product.icon,
+                price: product.price,
+                cost: newCost,
+                stock: newStock,
+                min_stock: product.min_stock,
+                product_type: 'complex'
+            })
+        });
+        
+        console.log(`✅ Produs ${product.name}: stoc=${newStock}, cost=${newCost.toFixed(2)} RON`);
+    }
+}
+
+// Actualizează toate produsele complexe
+async function updateAllComplexProducts() {
+    const complexProducts = products.filter(p => p.product_type === 'complex');
+    
+    for (const product of complexProducts) {
+        await updateComplexProductStockAndCost(product.id);
+    }
+    
+    await loadProducts();
+}
+
+// Scade ingredientele din stoc după o vânzare
+async function deductIngredientsFromSale(saleItems) {
+    for (const item of saleItems) {
+        const product = products.find(p => p.id === item.product_id || p.id === String(item.product_id));
+        if (!product || product.product_type !== 'complex') continue;
+        
+        // Obține rețeta
+        const recipeRes = await api(`recipes?action=get&product_id=${product.id}`);
+        if (!recipeRes.success || !recipeRes.data) continue;
+        
+        // Scade fiecare ingredient
+        for (const recipeItem of recipeRes.data) {
+            const quantityUsed = parseFloat(recipeItem.quantity) * item.quantity;
+            
+            await api('ingredients?action=update_stock', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: recipeItem.ingredient_id,
+                    quantity: -quantityUsed // Negativ pentru scădere
+                })
+            });
+        }
+    }
+    
+    // Reîncarcă ingredientele și actualizează produsele complexe
+    await loadIngredients();
+    await updateAllComplexProducts();
+}
+
+// Recalculare manuală a produselor complexe
+async function recalculateComplexProducts() {
+    loading(true);
+    toast('Se recalculează stocul produselor complexe...', 'info');
+    
+    try {
+        await loadIngredients();
+        await updateAllComplexProducts();
+        await loadProducts();
+        await loadProdTable();
+        
+        toast('✅ Stoc și cost actualizate pentru toate produsele complexe!');
+    } catch (e) {
+        toast('Eroare la recalculare: ' + e.message, 'error');
+    }
+    
+    loading(false);
+}
+
+// Recalculare automată la fiecare 5 minute
+setInterval(async () => {
+    if (products && products.length > 0) {
+        const hasComplexProducts = products.some(p => p.product_type === 'complex');
+        if (hasComplexProducts) {
+            console.log('🔄 Recalculare automată produse complexe...');
+            await loadIngredients();
+            await updateAllComplexProducts();
+            await loadProducts();
+        }
+    }
+}, 5 * 60 * 1000); // La fiecare 5 minute
 
 	
 // ================================================
