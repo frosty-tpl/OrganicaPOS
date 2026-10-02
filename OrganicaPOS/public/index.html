@@ -6830,6 +6830,59 @@ setInterval(async () => {
     }
 }, 5 * 60 * 1000); // La fiecare 5 minute
 
+
+	// ================================================
+// VERIFICARE UPDATE
+// ================================================
+
+if (typeof require !== 'undefined') {
+    const { ipcRenderer, shell } = require('electron');
+    
+    ipcRenderer.on('update-available', (event, info) => {
+        // Creează modal de update
+        const updateModal = document.createElement('div');
+        updateModal.className = 'modal-overlay active';
+        updateModal.id = 'updateModal';
+        updateModal.innerHTML = `
+            <div class="modal" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3>🚀 Actualizare Disponibilă</h3>
+                </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">⬆️</div>
+                    <p style="margin-bottom: 10px;">
+                        <strong>Versiune nouă:</strong> ${info.newVersion}
+                    </p>
+                    <p style="margin-bottom: 10px; color: var(--text-muted);">
+                        <strong>Versiune curentă:</strong> ${info.currentVersion}
+                    </p>
+                    <p style="margin-bottom: 20px;">${info.message}</p>
+                </div>
+                <div class="modal-footer" style="justify-content: center; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="closeUpdateModal()">Mai târziu</button>
+                    <button class="btn btn-primary" onclick="downloadUpdate('${info.downloadUrl}')">📥 Descarcă Acum</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(updateModal);
+    });
+}
+
+function closeUpdateModal() {
+    const modal = document.getElementById('updateModal');
+    if (modal) modal.remove();
+}
+
+function downloadUpdate(url) {
+    if (typeof require !== 'undefined') {
+        const { shell } = require('electron');
+        shell.openExternal(url);
+    } else {
+        window.open(url, '_blank');
+    }
+    closeUpdateModal();
+}
+
 	
 // ================================================
 // INIT
